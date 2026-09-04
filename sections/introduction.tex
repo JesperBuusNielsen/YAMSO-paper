@@ -1,0 +1,72 @@
+\section{Introduction}
+\label{sec:introduction}
+
+The YOSO (You Only Speak Once) model was introduced as a way to obtain secure
+multiparty computation against a very strong adaptive adversary
+\cite{GentryEtAl2021YOSOFull}. A protocol role is assigned to an ephemeral
+party which prepares one message, deletes the secret state used to prepare
+it, and then sends the message. Only at this point does the role reveal
+itself. Corrupting the sender after publication is therefore too late: the
+message is already available and the secrets that produced it no longer
+exist. Later work has developed this anonymous, ephemeral-role paradigm in
+several directions; the erase-before-send discipline remains central.
+
+This paper starts from the deliberately unfriendly question: what if deletion
+is impossible? The restriction might be legal---a regime may require state
+to be retained for later inspection---or technological. For example, a
+party running in a cloud environment might fear that speaking identifies its
+machine and enables the cloud operator to inspect a residual snapshot despite
+an attempted deletion. We capture the extreme version of this concern by
+declaring that whenever an ordinary party speaks, its complete state leaks to
+the adversary.
+
+The immediate answer seems to be ``obviously impossible.'' Eventually all
+parties relevant to the computation will speak and hence reveal everything.
+This conclusion overlooks one asymmetry. Speaking is optional. A machine
+may remain silent forever, in which case both its role and its state may stay
+hidden. We therefore place mutually exclusive pieces of secret state in
+different anonymous machines. The selected machines speak and are expended;
+the unselected machines never speak. In this sense, silence replaces erasure
+as the one-time resource.
+
+We call the resulting setting \emph{YAMSO}: You At Most Speak Once. In a
+YAMSO execution, public keys are registered anonymously on a ledger, hidden
+roles are assigned uniformly among the registered machines, and an adversary
+may corrupt any fixed fraction of the global machine population. Because
+unopened machines are indistinguishable, the corrupt fraction inside a hidden
+committee is distributed as if sampled at random, even though the adversary
+chooses which machines to inspect. Once a committee speaks, its members may
+be exposed completely; their message is already irrevocably recorded and
+they are never assigned another role.
+
+This first version has three modest goals. First, it fixes common vocabulary
+for the ledger, anonymous machine population, leakage rule, and exceptional
+input providers. Second, it gives a non-reactive construction sketch that
+illustrates why the model is not vacuous: each alternative garbled input label
+is held by a different hidden committee, and only the committee selected by
+the accepted input token speaks. Third, it isolates the obstacle to ongoing
+computation. Independent setup samples do not know how an opaque output label
+from one garbling should be interpreted by the next. We suggest that a
+\emph{universal streamer}---a public object containing hidden, persistent
+correlation---is the appropriate missing primitive.
+
+The presentation is intentionally preliminary. The construction in
+\cref{sec:basic-construction} is a feasibility blueprint rather than a stated
+theorem. In particular, the exact corruption experiment, anonymous delivery
+primitive, availability guarantees, and simulator interfaces remain to be
+fixed. These choices are made explicit rather than hidden in notation.
+
+\paragraph{Relation to prior work.}
+Our starting point is YOSO \cite{GentryEtAl2021YOSOFull}. Anonymous
+blockchain committees tolerating a corruption rate around one quarter are
+known, but their secret handoff relies on erasures
+\cite{BenhamoudaEtAl2020BlockchainSecret}. Blockchain one-time programs
+already demonstrate conditional release of one garbled input on an immutable
+ledger \cite{GoyalGoyal2017Blockchains}. No-erasure hidden committees also
+appear in communication-local MPC, although there the selected committee runs
+an ordinary multi-round computation
+\cite{ChandranEtAl2024CommunicationLocalMPC}. Our basic sketch combines the
+anonymous-role viewpoint with threshold-separated garbled labels; the
+reactive direction connects to reactive garbling, succinct garbling, and
+streaming functional encryption
+\cite{NielsenRanellucci2015ReactiveGarbling,LinPass2014SuccinctGarbling,GuanKorbSahai2022StreamingFE}.

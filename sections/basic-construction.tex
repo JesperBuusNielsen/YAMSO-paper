@@ -1,0 +1,71 @@
+\section{The Basic Non-Reactive Construction}
+\label{sec:basic-construction}
+
+We illustrate the central idea for a single evaluation of a public Boolean
+circuit $F$. For now the output is public. The construction assumes an ideal
+setup procedure capable of sampling hidden committees and anonymously
+delivering their local state. Its purpose is to isolate how silence can
+replace erasure, not yet to optimize assumptions or efficiency.
+
+\subsection{Setup}
+
+The setup procedure garbles $F$, obtaining a public garbled circuit
+$\widetilde F$, two labels $(L^w_0,L^w_1)$ for every input wire $w$, and public
+output-decoding information. For every input wire $w$ it also samples two
+independent random activation tokens $(T^w_0,T^w_1)$.
+
+For each pair $(w,b)$, setup selects a fresh hidden committee $C^w_b$. All
+such committees are disjoint. It verifiably secret-shares $L^w_b$ among the
+members of $C^w_b$ and anonymously delivers to each member its share, the wire
+identifier, and a recognition value for $T^w_b$. A committee member learns
+neither the bit $b$ represented by its label nor the identity of the sibling
+committee. The input provider for wire $w$ receives the two tokens together
+with the mapping $b\mapsto T^w_b$.
+
+The garbled circuit, encrypted role packets, output-decoding information, and
+ledger acceptance predicates are public. No online machine is given both
+labels for an input wire.
+
+\subsection{Input activation and evaluation}
+
+To provide bit $x_w$, the input provider posts $T^w_{x_w}$ in the unique input
+slot for wire $w$. The ledger authenticates the provider and accepts at most
+one token in that slot. Every machine scans the accepted ledger. Precisely
+the members of $C^w_{x_w}$ recognize the token and each posts its share as its
+single lifetime message. Valid shares reconstruct $L^w_{x_w}$ on the ledger.
+The sibling committee $C^w_{1-x_w}$ remains silent forever.
+
+Once one input label has been reconstructed for every wire, anyone evaluates
+$\widetilde F$ and decodes the public output. Public evaluation may itself be
+performed by a fresh machine: its later exposure reveals only public data.
+
+\subsection{Why post-speech exposure need not be fatal}
+
+After a selected committee member speaks, its entire state reveals its label
+share and activation information. The share belongs to a label that has
+already been reconstructed publicly, so this leakage is harmless. Because
+the two committees are disjoint, the exposed state contains no share of the
+unselected label. That label remains protected by threshold privacy inside a
+committee whose honest members never speak.
+
+The same observation defeats the most immediate reset attack. Corrupting an
+input provider after its post may reveal both activation tokens, but the
+ledger will not accept a second token for the same input slot. Silent
+committees react only to the uniquely accepted ledger value, not to arbitrary
+strings that appear elsewhere.
+
+This argument is only local. A complete proof must combine anonymous
+recipient security, the hidden-assignment tail bound, robust threshold
+reconstruction, garbling privacy, and simulation of the special input
+providers. It must also rule out role collisions and setup grinding. The
+blueprint is nevertheless enough to show why the model is not immediately
+empty: a selected branch may become completely exposed while its mutually
+exclusive sibling remains information-theoretically hidden by silence.
+
+\paragraph{A gate-by-gate variant.}
+For intuition, garbling can be replaced by a very expensive
+information-theoretic construction. For every NAND gate and every pair of
+input bits, a separate hidden committee holds shares of the corresponding
+output token. Once the two accepted input tokens appear, only the matching
+row committee reconstructs. This makes the role of silence especially
+transparent, at the cost of a large setup and many committees.

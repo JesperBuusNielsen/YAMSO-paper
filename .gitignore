@@ -1,0 +1,20 @@
+# Local TeX build products
+build/
+output/pdf/
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# Editors and macOS
+.DS_Store
+*.swp
+*.swo
+*~

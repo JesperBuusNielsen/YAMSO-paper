@@ -1,0 +1,67 @@
+\section{Toward Ongoing Computation}
+\label{sec:ongoing}
+
+The preceding construction is prepared for one circuit evaluation. An
+ongoing computation must turn the opaque output labels of one garbling into
+the input labels of a fresh garbling. Reactive garbling provides exactly such
+links \cite{NielsenRanellucci2015ReactiveGarbling}, but the usual linker is
+computed from both old output labels and both new input labels. A YAMSO
+machine that computes and publishes this link would reveal all of these labels
+when its state leaks.
+
+Preparing all links in advance avoids the exposure problem only for a bounded
+number of epochs. Asking the universal sampler for an independent fresh
+garbling at every epoch does not solve the semantic problem either: the new
+sample sees an opaque old label but has no correlated information telling it
+whether that label represents zero or one.
+
+We therefore propose a stronger object, provisionally called a
+\emph{universal streamer}. One initial setup sample chooses a master key $K$
+and publishes a protected program $PP_K$. Subsequent public evaluations
+derive domain-separated label keys, branch packets, and hidden role
+assignments for successive epochs. Schematically,
+\[
+  PP_K \leftarrow \mathsf{SetupStream}(1^\lambda,F),
+  \qquad
+  \mathsf{Prepare}(PP_K,i,D_i)
+     \longrightarrow (\text{encrypted branch packets for epoch }i),
+\]
+where $D_i$ is an authenticated opaque state. The program prepares both
+branch-local packets anonymously, but the accepted input token still causes
+only one hidden committee to release its packet. Thus $PP_K$ supplies
+cross-epoch correlation while silence continues to enforce one-of-two
+disclosure.
+
+There are close ingredients in the literature. Succinct garbling derives
+adjacent garbling keys from one PRF seed inside a public obfuscated generator
+\cite{LinPass2014SuccinctGarbling}. Cryptographic iterators publish an
+obfuscated update program containing a hidden puncturable-PRF key and support
+a very long sequence of compact state transitions
+\cite{KoppulaLewkoWaters2014IOTM}. Streaming functional encryption formalizes
+fresh inputs and evolving hidden state
+\cite{GuanKorbSahai2022StreamingFE,BhushanKorbSahai2024StreamingFE,DattaGuanKorbSahai2024AdaptiveStreamingFE}.
+Public obfuscation has also been
+used to obtain adaptive security without erasures by ensuring that a speaking
+party never possesses both label alternatives
+\cite{CanettiGoldwasserPoburinnaya2014Adaptive2PC}.
+
+None of these results directly provides the YAMSO interface. The missing
+proof must combine authenticated canonical ledger paths, deterministic and
+non-grindable role preparation, anonymous threshold delivery, fresh-machine
+separation, and complete post-speech exposure. A useful development order is
+therefore:
+\begin{enumerate}
+  \item prove the two-token, one-input construction formally;
+  \item extend it to a finite sequence of pre-correlated transitions;
+  \item formulate the universal-streamer functionality; and
+  \item replace the finite table by a PRF-correlated public program.
+\end{enumerate}
+
+Reusable garbled circuits and garbled Turing machines remain relevant
+comparison points
+\cite{GoldwasserEtAl2012ReusableGarbling,GoldwasserEtAl2013TuringMachines}.
+Their compact or reusable encodings do not
+by themselves solve YAMSO: the standard encoder retains secret state whose
+later exposure is outside the security guarantee. Their machinery may,
+however, help realize the protected transition program once the desired
+interface is stated precisely.

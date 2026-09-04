@@ -1,0 +1,90 @@
+\section{Preliminaries: What Must Be Fixed}
+\label{sec:preliminaries}
+
+This section is presently a roadmap. The final paper should reproduce every
+definition whose details affect the YAMSO claim, while importing routine
+cryptographic syntax and standard security definitions by reference.
+
+\subsection{Conventions}
+
+We write $\lambda$ for the security parameter, $[n]=\{1,\ldots,n\}$, and
+$\bits^*$ for the set of finite bit strings. All adversaries and protocols
+are probabilistic polynomial time unless explicitly stated otherwise, and
+$\negl(\lambda)$ denotes a negligible function. Protocol identifiers,
+epochs, wire identifiers, and ledger slots must be included in every
+cryptographic domain separator.
+
+\subsection{Definitions that belong in this paper}
+
+The following objects are model-specific and should eventually be defined in
+full.
+
+\begin{description}
+  \item[Ledger.] An append-only, totally ordered bulletin board with an
+    explicit acceptance predicate. Each logical slot accepts at most one
+    authenticated value; later protocol steps depend on the accepted prefix,
+    not merely on the multiset of posted strings.
+
+  \item[Anonymous machine registry.] A finite eligible population for each
+    security experiment. Its public records are computationally
+    indistinguishable with respect to hidden role assignment. A formulation
+    may use independently registered public keys, or an anonymous IBE-style
+    master public key with unlinkable, eligibility-limited secret-key
+    extraction.
+
+  \item[YAMSO machine.] A machine either appends one protocol message during
+    its lifetime or remains silent forever. After an append, its complete
+    prior state is exposed. Role reuse must be forbidden, since exposing one
+    role would otherwise expose a future role stored by the same machine.
+
+  \item[Strong input provider.] An exceptional party may append a prescribed
+    function of its state rather than the state itself. If it is later
+    corrupted, the ideal process releases its input to the simulator; if it
+    is never corrupted, its input must remain private.
+
+  \item[Role-oblivious corruption.] The adversary may adaptively inspect a
+    bounded fraction of the machine universe, but unopened machines remain
+    exchangeable. Discovering one committee member must not provide a test
+    for identifying another unopened member.
+\end{description}
+
+\subsection{Primitives that can largely be imported}
+
+Standard definitions of pseudorandom functions, commitments, signatures,
+secret sharing, and circuit garbling need not be repeated in full. We should
+state the exact variants used and cite them. The following nonstandard
+interfaces do require care.
+
+\begin{description}
+  \item[Anonymous delivery.] Message privacy alone is insufficient: a ledger
+    ciphertext must hide which registered key can decrypt it. We need a
+    multi-user, key-private or anonymous encryption definition, together with
+    correctness under recipient discovery. If ciphertexts are intended to
+    look like unrelated ledger traffic, pseudorandom-ciphertext security must
+    also be stated.
+
+  \item[Verifiable threshold sharing.] The construction needs privacy below
+    the reconstruction threshold, liveness from the honest members, and
+    public rejection of malformed shares. We can import a standard scheme
+    once the corruption threshold and synchrony assumptions are fixed.
+
+  \item[Garbled circuits.] We can import the usual garbling syntax and privacy
+    guarantee. The paper must separately prove that post-speech exposure of
+    a selected label committee reveals no information beyond the label that
+    is already reconstructed on the ledger.
+
+  \item[Universal sampling.] The setup may be phrased using the universal
+    sampler of Hofheinz et al.\ \cite{HofheinzEtAl2014UniversalSamplers}.
+    Its ordinary samples for distinct descriptions use independent ideal
+    randomness. Any ongoing construction that correlates different epochs
+    must therefore expose that correlation explicitly rather than attribute
+    it to the standard sampler definition.
+\end{description}
+
+\paragraph{Open drafting decision.}
+For the first formal model it is probably cleanest to treat the ledger,
+anonymous registry, and role assignment as ideal resources, while using
+standard cryptographic primitives for label sharing and garbling. A later
+section can then separate implementations of the setup---ordinary anonymous
+public keys, anonymous IBE, or universal sampling---from the core YAMSO
+phenomenon.

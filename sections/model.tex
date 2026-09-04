@@ -1,0 +1,74 @@
+\section{An Informal YAMSO Model}
+\label{sec:model}
+
+We first describe the model at the level needed to understand the
+construction. Formal real and ideal executions will be added after the
+remaining choices in \cref{sec:preliminaries} have been fixed.
+
+\subsection{Machines and the ledger}
+
+For a security parameter $\lambda$, let $\mathcal{P}=[N]$ be a finite set of
+eligible machines. The ledger contains an anonymous public record for each
+machine. Each machine has the corresponding secret decryption capability,
+but the public records do not reveal which machines have been assigned
+protocol roles. The ledger totally orders all accepted messages and provides
+first-write-wins slots for inputs and protocol activations.
+
+An ordinary machine may speak at most once during its lifetime. When it
+speaks, its prescribed message is appended to the ledger and cannot be
+dropped. Immediately afterwards its complete state is revealed to the
+adversary. This automatic leakage only strengthens the adversary and avoids
+having to distinguish between messages and the states that computed them.
+The machine is never used again. A machine that never speaks need not reveal
+its state or even the fact that it holds a role.
+
+\subsection{Hidden assignment and corruption}
+
+The adversary may choose and inspect up to $N/4$ machines. Its choice need
+not be random and may depend on everything learned so far. Roles, however,
+are placed independently and uniformly among machines whose public appearance
+does not reveal the assignment. Conditional on the current view, unopened
+machines must remain exchangeable. In particular, corrupting a committee
+member must not reveal any linkage to its peers.
+
+Let $C$ be a hidden committee of size $k$, and let $X$ be the number of its
+members among an adversarially selected quarter of the population. Then $X$
+is hypergeometric with mean at most $k/4$. Hoeffding's inequality for
+sampling without replacement gives
+\[
+  \Pr[X\geq k/2] \leq \exp(-k/8)
+  \quad\text{and}\quad
+  \Pr[X\geq k/3] \leq \exp(-k/72).
+\]
+Thus an appropriate logarithmic committee size makes the probability of a
+bad committee negligible across any polynomial number of realized roles.
+The randomness here is in the hidden role placement, not in the adversary's
+choice of whom to corrupt.
+
+Once a committee speaks, the identities and states of all its members may be
+treated as public, independently of the quarter budget. This does not affect
+the message already accepted by the ledger. It is harmless only if the
+speaking machines have no role in an unselected sibling committee or any
+future epoch.
+
+\subsection{Input providers and intended security}
+
+A strong input provider $I$ is permitted to retain private state. For each
+input position it will receive two random activation tokens and their semantic
+mapping. It posts only the token representing its chosen input. If $I$ is
+later corrupted, its input and full state may be revealed and the simulator
+is given the input. If $I$ remains honest and uncorrupted, the unused token
+and the input bit must remain hidden.
+
+Informally, security should say that the adversary learns the public output,
+the state of every ordinary machine that speaks, the complete state and input
+of each corrupted input provider, and the state of every machine it corrupts
+within its global budget---but nothing else. In particular it should not
+learn an unselected garbled label or identify enough members of a silent
+committee to reconstruct it.
+
+The first formalization should distinguish privacy from availability. A
+corrupt selected committee may withhold or malformedly publish shares unless
+the threshold scheme and ledger specify recovery and verification. It must
+also specify whether the machine population grows between epochs and how the
+global quarter budget is measured in that case.

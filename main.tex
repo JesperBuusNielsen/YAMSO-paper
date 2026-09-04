@@ -1,0 +1,53 @@
+\documentclass[runningheads,a4paper]{llncs}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{fullpage}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+\input{macros}
+
+\title{The YAMSO Model: YOSO without Erasure}
+\titlerunning{The YAMSO Model}
+\author{Jesper Buus Nielsen\inst{1} \and Ivan Damg{\aa}rd\inst{1} \and
+  Sannidhi V. Hebbar\inst{2}}
+\authorrunning{J. B. Nielsen et al.}
+\institute{Aarhus University, Denmark\\
+  \email{\{jbn,ivan\}@cs.au.dk}
+  \and
+  Indian Institute of Science, India\\
+  \email{sannidhiv@iisc.ac.in}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The YOSO paradigm protects against a strongly adaptive adversary. Each
+ephemeral role prepares one message, erases all remaining state, and only
+then speaks. We ask what remains possible when erasure is unavailable and
+speaking instead exposes the sender's complete state. At first sight, such a
+model appears useless. Nevertheless, it has a different irreversible
+resource: a machine may choose never to speak, in which case its state and
+even its role can remain hidden. We call the resulting model YAMSO, for ``You
+At Most Speak Once.'' This preliminary article introduces the model,
+describes a basic non-reactive construction from anonymous hidden committees
+and garbled circuits, and isolates the additional correlated setup needed for
+ongoing computation.
+\keywords{adaptive security \and YOSO \and erasure-free protocols \and
+anonymous committees \and garbled circuits}
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/preliminaries}
+\input{sections/model}
+\input{sections/basic-construction}
+\input{sections/ongoing-computation}
+
+\bibliographystyle{splncs04}
+\bibliography{bibliography}
+
+\end{document}
