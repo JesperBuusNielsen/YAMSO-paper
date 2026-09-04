@@ -23,38 +23,46 @@ the adversary.
 The immediate answer seems to be ``obviously impossible.'' Eventually all
 parties relevant to the computation will speak and hence reveal everything.
 This conclusion overlooks one asymmetry. Speaking is optional. A machine
-may remain silent forever, in which case both its role and its state may stay
-hidden. We therefore place mutually exclusive pieces of secret state in
-different anonymous machines. The selected machines speak and are expended;
-the unselected machines never speak. In this sense, silence replaces erasure
-as the one-time resource.
+may remain silent forever, in which case its secret state may stay hidden. We
+therefore place mutually exclusive pieces of state behind different
+public-key roles. The selected roles speak and are expended; the unselected
+roles never speak. In this sense, silence replaces erasure as the one-time
+resource.
 
 We call the resulting setting \emph{YAMSO}: You At Most Speak Once. In a
-YAMSO execution, public keys are registered anonymously on a ledger, hidden
-roles are assigned uniformly among the registered machines, and an adversary
-may corrupt any fixed fraction of the global machine population. Because
-unopened machines are indistinguishable, the corrupt fraction inside a hidden
-committee is distributed as if sampled at random, even though the adversary
-chooses which machines to inspect. Once a committee speaks, its members may
-be exposed completely; their message is already irrevocably recorded and
-they are never assigned another role.
+YAMSO execution, a synchronous ledger maintains a growing ordered list of
+public keys and messages. The public-key index determines the protocol role.
+For the preliminary model, each newly registered computation role is corrupted
+independently with probability $p$, whereas named application parties remain
+adaptively corruptible in the usual way. An honest role keeps its secret key
+inside a protected ledger interface until its one scheduled opportunity to
+speak.
+The intended later model will derive essentially the same random committee
+corruption from hidden assignment against an adversary controlling a bounded
+fraction of a much larger population. Once a computation role speaks, its key
+may become completely public; its message is already irrevocably recorded and
+the role is never used again.
 
-This first version has three modest goals. First, it fixes common vocabulary
-for the ledger, anonymous machine population, leakage rule, and exceptional
-input providers. Second, it gives a non-reactive construction sketch that
-illustrates why the model is not vacuous: each alternative garbled input label
-is held by a different hidden committee, and only the committee selected by
-the accepted input token speaks. Third, it isolates the obstacle to ongoing
-computation. Independent setup samples do not know how an opaque output label
-from one garbling should be interpreted by the next. We suggest that a
-\emph{universal streamer}---a public object containing hidden, persistent
-correlation---is the appropriate missing primitive.
+This first version has three modest goals. First, it gives a generic ledger
+API with synchronous public state, growing registration, random corruption,
+protected local evaluation, and explicit one-time turns. Second, it gives a
+finite construction sketch that illustrates why the model is not vacuous:
+each alternative garbled input label is shared behind a different committee,
+and only the committee selected by the input token reveals its keys. Third, it
+proposes a \emph{universal streamer}. This changes the universal-sampler
+interface by giving a fixed sampling description $d$ an append-only stream of
+public inputs. The outputs for successive input prefixes must themselves be
+prefixes. A fixed $d$ can thereby describe one indefinitely extended garbling
+whose output state labels are literally the input state labels of the next
+stretch, while later public keys arrive as public inputs. Constructing such a
+prefix-preserving universal sampler remains open.
 
 The presentation is intentionally preliminary. The construction in
 \cref{sec:basic-construction} is a feasibility blueprint rather than a stated
-theorem. In particular, the exact corruption experiment, anonymous delivery
-primitive, availability guarantees, and simulator interfaces remain to be
-fixed. These choices are made explicit rather than hidden in notation.
+theorem. Section~\ref{sec:model} fixes an operational experiment against
+which a first proof can be written. The detailed UC functionality is deferred
+until this API is stable, and universal sampling remains entirely a
+protocol-level mechanism.
 
 \paragraph{Relation to prior work.}
 Our starting point is YOSO \cite{GentryEtAl2021YOSOFull}. Anonymous
@@ -66,7 +74,8 @@ ledger \cite{GoyalGoyal2017Blockchains}. No-erasure hidden committees also
 appear in communication-local MPC, although there the selected committee runs
 an ordinary multi-round computation
 \cite{ChandranEtAl2024CommunicationLocalMPC}. Our basic sketch combines the
-anonymous-role viewpoint with threshold-separated garbled labels; the
-reactive direction connects to reactive garbling, succinct garbling, and
-streaming functional encryption
-\cite{NielsenRanellucci2015ReactiveGarbling,LinPass2014SuccinctGarbling,GuanKorbSahai2022StreamingFE}.
+one-time-role viewpoint with threshold-separated garbled labels. The
+universal-streamer direction connects to reactive garbling, succinct
+garbling, garbled Turing machines, and streaming functional encryption
+\cite{NielsenRanellucci2015ReactiveGarbling,LinPass2014SuccinctGarbling,%
+GoldwasserEtAl2013TuringMachines,GuanKorbSahai2022StreamingFE}.

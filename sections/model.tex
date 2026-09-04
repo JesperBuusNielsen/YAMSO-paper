@@ -1,74 +1,254 @@
-\section{An Informal YAMSO Model}
+\section{The YAMSO Ledger Model}
 \label{sec:model}
 
-We first describe the model at the level needed to understand the
-construction. Formal real and ideal executions will be added after the
-remaining choices in \cref{sec:preliminaries} have been fixed.
+We describe the ledger interface at the level needed for the finite
+construction in \cref{sec:basic-construction}. Our approach follows the
+modelling style of \cite[Section~2.1]{DinsdaleYoungEtAl2020Afgjort}: we state
+an intentionally strong and simple abstraction, isolate the properties used
+by the protocol, and postpone its detailed realization. A later version will
+express this interface as an ideal functionality
+$\mathcal F_{\mathsf{Ledger}}$, in the style of the total-order-broadcast
+functionality of \cite{DamgardEtAl2025AsyncYOSO}. There is no reason to fix
+that UC bookkeeping before the API itself has stabilized.
 
-\subsection{Machines and the ledger}
+The ledger is generic. It knows nothing about universal sampling, garbled
+circuits, committees, input wires, or the meaning of protocol roles. Those
+belong to the protocol using the ledger.
 
-For a security parameter $\lambda$, let $\mathcal{P}=[N]$ be a finite set of
-eligible machines. The ledger contains an anonymous public record for each
-machine. Each machine has the corresponding secret decryption capability,
-but the public records do not reveal which machines have been assigned
-protocol roles. The ledger totally orders all accepted messages and provides
-first-write-wins slots for inputs and protocol activations.
+\subsection{Public state and initialization}
 
-An ordinary machine may speak at most once during its lifetime. When it
-speaks, its prescribed message is appended to the ledger and cannot be
-dropped. Immediately afterwards its complete state is revealed to the
-adversary. This automatic leakage only strengthens the adversary and avoids
-having to distinguish between messages and the states that computed them.
-The machine is never used again. A machine that never speaks need not reveal
-its state or even the fact that it holds a role.
-
-\subsection{Hidden assignment and corruption}
-
-The adversary may choose and inspect up to $N/4$ machines. Its choice need
-not be random and may depend on everything learned so far. Roles, however,
-are placed independently and uniformly among machines whose public appearance
-does not reveal the assignment. Conditional on the current view, unopened
-machines must remain exchangeable. In particular, corrupting a committee
-member must not reveal any linkage to its peers.
-
-Let $C$ be a hidden committee of size $k$, and let $X$ be the number of its
-members among an adversarially selected quarter of the population. Then $X$
-is hypergeometric with mean at most $k/4$. Hoeffding's inequality for
-sampling without replacement gives
+Fix a security parameter $\lambda$, a session identifier $\mathsf{sid}$, a
+constant $p<1/3$, a generic setup distribution $\mathsf{Setup}$, a
+key-generation algorithm $\mathsf{KeyGen}$, and a description of a deterministic
+protocol-dependent algorithm $\mathsf{WhosTurn}$. The description of
+$\mathsf{WhosTurn}$ is supplied to the ledger as a fixed initialization value;
+it cannot be changed in response to the execution. The ledger samples
 \[
-  \Pr[X\geq k/2] \leq \exp(-k/8)
-  \quad\text{and}\quad
-  \Pr[X\geq k/3] \leq \exp(-k/72).
+  \mathsf{crs}\leftarrow\mathsf{Setup}(1^\lambda)
 \]
-Thus an appropriate logarithmic committee size makes the probability of a
-bad committee negligible across any polynomial number of realized roles.
-The randomness here is in the hidden role placement, not in the adversary's
-choice of whom to corrupt.
+and initializes the public append-only list as
+$L=((\mathsf{Setup},\mathsf{crs}))$. The concrete protocol gives meaning to
+$\mathsf{crs}$; the ledger does not interpret it.
 
-Once a committee speaks, the identities and states of all its members may be
-treated as public, independently of the quarter budget. This does not affect
-the message already accepted by the ledger. It is harmless only if the
-speaking machines have no role in an unselected sibling committee or any
-future epoch.
+We assume synchronous computation and an unrealistically strong broadcast
+abstraction. After an entry is appended, every party sees exactly the same
+list $L$ at the same time. An append is atomic, cannot be suppressed after
+it occurs, and fixes the position of that entry. There are no delayed,
+private, or party-local ledger views. This deliberately idealized assumption
+removes consensus and network scheduling from the present question.
 
-\subsection{Input providers and intended security}
+Apart from its own setup, registration, and timeout records, the ledger does
+not enforce protocol syntax. In particular, an arbitrary message supplied by
+a corrupt scheduled party is appended verbatim. The protocol reading $L$
+decides which entries are well-formed and ignores malformed ones.
 
-A strong input provider $I$ is permitted to retain private state. For each
-input position it will receive two random activation tokens and their semantic
-mapping. It posts only the token representing its chosen input. If $I$ is
-later corrupted, its input and full state may be revealed and the simulator
-is given the input. If $I$ remains honest and uncorrupted, the unused token
-and the input bit must remain hidden.
+\subsection{Two registration paths}
 
-Informally, security should say that the adversary learns the public output,
-the state of every ordinary machine that speaks, the complete state and input
-of each corrupted input provider, and the state of every machine it corrupts
-within its global budget---but nothing else. In particular it should not
-learn an unselected garbled label or identify enough members of a silent
-committee to reconstruct it.
+The registry grows during the execution. There are two ways to add a key;
+neither command takes a protocol role as input. The interface imposes no
+a-priori bound on the registry, although any efficient execution creates only
+polynomially many keys and every finite protocol instance uses a finite
+prefix.
 
-The first formalization should distinguish privacy from availability. A
-corrupt selected committee may withhold or malformedly publish shares unless
-the threshold scheme and ledger specify recovery and verification. It must
-also specify whether the machine population grows between epochs and how the
-global quarter budget is measured in that case.
+\paragraph{Computation-party registration.}
+On a $\mathsf{Register}$ request from the adversary, the ledger samples
+\[
+  (pk_i,sk_i)\leftarrow\mathsf{KeyGen}(1^\lambda),
+\]
+where $i$ is the next computation-key index, creates an ITM whose PID is
+$pk_i$, and appends $(\mathsf{Register},pk_i)$ to $L$. Independently it
+samples $c_i\leftarrow\mathsf{Bernoulli}(p)$. If $c_i=1$, the new
+computation party is corrupt and $sk_i$ is given to the adversary. Otherwise
+it is honest, the ledger retains $sk_i$ as protected state, and the adversary
+cannot corrupt this party later. Registration is indivisible: after
+requesting it, the adversary cannot discard the public key because it
+dislikes the corruption outcome.
+
+\paragraph{Application-party registration.}
+A fixed application party with ordinary UC identity $P$ may also input
+$\mathsf{Register}$. The ledger samples
+$(pk_P,sk_P)\leftarrow\mathsf{KeyGen}(1^\lambda)$, stores the association
+$P\leftrightarrow(pk_P,sk_P)$, and appends
+$(\mathsf{Register},P,pk_P)$ to $L$. It does not return $sk_P$ to an honest
+$P$. There is no Bernoulli corruption experiment for such a party: the
+adversary may corrupt $P$ adaptively in the ordinary UC sense. If $P$ is
+already corrupt, or becomes corrupt later, the ledger releases $sk_P$ and
+its retained record of $P$'s protected calls to the adversary. The target
+ideal functionality supplies the simulator with any input or output leakage
+prescribed upon that corruption.
+
+Each PID registers at most once per session. Application parties are the
+meaningful principals at the interface of the computation---for example, an
+account owner supplying an input. Their identity need not and generally
+cannot be hidden. Computation parties, by contrast, are protocol machinery.
+
+A public protocol-level rule maps registration positions to roles. Thus the
+seventh computation key may represent the eighth share-release role. This
+mapping is not an argument to $\mathsf{Register}$ and is not interpreted by
+the ledger.
+
+\subsection{Turns and protected local evaluation}
+
+At each synchronous step, the fixed algorithm $\mathsf{WhosTurn}(L)$ returns
+either a registered public key that has not previously had a turn, or
+$\bot$. It may schedule a computation key $pk_i$ or the registered key
+$pk_P$ of an application party. A well-formed protocol chooses
+$\mathsf{WhosTurn}$ so that it waits for enough registrations and schedules
+each required role in the appropriate order. The ledger does not interpret
+why a particular key is scheduled.
+
+When a key $pk$ is scheduled, its owner has one synchronous opportunity to
+speak. Write $L_{mathsf{pre}}$ for the list at the start of that turn. An
+honest owner privately gives the ledger a finite polynomial-time algorithm
+$A$. The ledger samples and retains any coins required by $A$, and evaluates
+\[
+  m\leftarrow A(sk,L_{\mathsf{pre}}),
+\]
+using the protected secret key associated with $pk$. If $m\neq\bot$, it
+signs $(\mathsf{sid},L_{\mathsf{pre}},m)$ using the signing component of $sk$
+and appends
+\[
+  (\mathsf{Message},pk,m,\sigma)
+\]
+to $L$. Neither $A$ nor the unrevealed part of $sk$ is output. The ledger
+retains the algorithm and its coins as the protected call record rather than
+modelling an erasure.
+
+If the owner is corrupt, the adversary knows $sk$ and may supply any pair of
+bit strings $(m,\sigma)$ during the turn. The ledger appends
+$(\mathsf{Message},pk,m,\sigma)$ verbatim without checking a signature, a key
+relation, or any other protocol-specific predicate. If an
+honest $A$ returns $\bot$, or if no message is supplied by the end of the
+turn, the ledger appends $(\mathsf{NoMsg},pk)$. This timeout is immediately
+visible to everyone and lets $\mathsf{WhosTurn}$ advance past a silent role.
+After either record is appended, $pk$ is spent and is never scheduled again.
+
+For an honest nonempty message, protected evaluation, signing, and append are
+one atomic operation. The adversary sees the result only after it is
+irrevocably in $L$. The ledger does not give an adversarial scheduler an
+opportunity to inspect the result and then suppress it.
+
+We assume that $\mathsf{KeyGen}$ may provide a public relation
+$\mathsf{KeyMatch}(pk,sk)$. A protocol that uses disclosure of $sk$ as its
+message can then check that the disclosed key belongs to the scheduled
+public key. If the chosen key system has no such relation, the ledger does
+not manufacture one: the protocol must tolerate the missing check or choose
+different key syntax.
+
+\subsection{How protocols use the interface}
+
+The following examples explain the intended use without adding commands to
+the ledger.
+
+\paragraph{Ordinary computation role.}
+From $\mathsf{crs}$ and the public list, all parties may derive the same
+protocol object, including a ciphertext $C_{pk}$ under a scheduled public
+key. This object need not itself be an entry of $L$. The honest role supplies
+an algorithm $A$ which derives $C_{pk}$, decrypts its local state with $sk$,
+examines $L$, and returns $sk$ if the role is activated and $\bot$ otherwise.
+If it returns $sk$, everyone can check $\mathsf{KeyMatch}$, decrypt
+$C_{pk}$, and continue the public computation. Thus publishing the key is the
+role's only message and models complete post-speech exposure. If $A$ returns
+$\bot$, the secret key and encrypted role state remain hidden forever.
+
+For this interpretation, every secret used by an ordinary role must be
+recoverable from $sk$ and public protocol data. A protocol that gives the
+role additional hidden auxiliary state cannot claim that publishing only
+$sk$ models leakage of its complete state.
+
+\paragraph{Strong input role.}
+An application party $P$ embeds its private input in $A$ and causes the
+ledger to append only the prescribed value $A(sk_P,L)$ and its signature.
+For example, $A$ may decrypt two activation tokens and return the one selected
+by an input bit. If $P$ remains honest, neither $sk_P$, the unused token, nor
+the input-dependent algorithm is revealed. If $P$ is corrupted, the
+adversary receives its ordinary UC state together with the key and protected
+call history retained by the ledger; correspondingly the simulator receives
+the input leakage specified by the target functionality. Corruption after
+the turn does not permit a replacement message because $pk_P$ is already
+spent.
+
+The present finite construction has public output. A later private-output
+variant may add a dual protected-read operation which evaluates a function of
+$(sk_P,L)$ and returns only its result privately to $P$; no such operation is
+needed here.
+
+\subsection{Random corruption and finite committees}
+
+The random coins apply only to computation-party registrations. Let $C$ be
+any size-$k$ computation committee selected from registration indices without
+using the hidden coins $(c_i)_i$, and let
+$X=|\{i\in C:c_i=1\}|$. Then $X\sim\mathsf{Binomial}(k,p)$. At the concrete
+choice $p=1/4$, Hoeffding's inequality gives
+\[
+  \Pr[X\geq k/3]\leq \exp(-k/72).
+\]
+If a finite execution uses $q$ such committees, a union bound gives
+\[
+  \Pr[\neg\mathsf{Good}]\leq q\exp(-k/72),
+\]
+where $\mathsf{Good}$ is the event that every committee has at most
+$t=\lfloor(k-1)/3\rfloor$ corrupt members. Hence
+$k=\Theta(\lambda+\log q)$ makes the bad event negligible for every
+polynomial-size finite execution. Application parties do not enter this
+calculation.
+
+\subsection{Interpretation and limitations}
+
+The preliminary experiment should not be read as saying that a real adversary
+naturally corrupts machines by tossing independent coins. The intended
+real-world picture has a large population of apparently interchangeable
+machines and an adversary that may choose any fixed $p$ fraction of that
+population to compromise. Fresh computation clients, keys, and role states
+are placed on machines at random, without revealing the placement before a
+machine is corrupted or speaks. A key's logical role may be public even though
+the physical machine carrying its secret state is not linkable from the
+ledger. Random placement therefore turns the adversary's fixed physical set
+into an approximately random corrupt subset of each computation committee.
+The independent Bernoulli coins in the present model collapse this placement
+argument into the cleaner statement that each computation PID is corrupt
+independently.
+
+This is a fixed-population, non-mobile abstraction. Once a computation PID is
+sampled honest it cannot later be corrupted. An adversary that can repeatedly
+replace the corrupted quarter of the physical population is strictly stronger
+and is not modelled here. Named application parties are different on purpose:
+an account owner or other designated input provider is not plausibly hidden by
+random placement, so it retains the ordinary adaptive corruption interface.
+The random computation corruptions are an implementation assumption to be
+simulated away, not a corruption rule for the target application.
+
+The statement that the ledger stores $sk$ and evaluates $A(sk,L)$ is likewise
+an ideal-interface device, not a proposal that a blockchain hold users' secret
+keys or execute their private code. In the intended implementation, a machine
+stores its own key and locally computes the one value it places on the public
+board. Moving that local step behind the ledger interface prevents an honest
+party's secret key from becoming an output visible to the UC environment. For
+a computation role, publishing $sk$ is an explicit way to model that speaking
+exposes all of its encrypted role state; for a named application party, only
+the prescribed value is published unless the party is actually corrupted.
+
+This abstraction is intentionally stronger and cleaner than such a system.
+It assumes honest key generation, independent placement, no selective abort
+of an unfavourable registration, instantaneous common knowledge of $L$,
+unpreventable honest appends, exact synchronous timeouts, protected
+evaluation under a secret key, and a protocol-dependent turn function fixed
+at initialization. It does not model consensus, denial of registration, network
+partitions, grinding, compromise correlations, or the mechanism that places
+a computation key on a real machine. These assumptions must not be mistaken
+for properties already obtained by a concrete blockchain.
+
+Finally, the computation PIDs and their random corruption coins exist only in
+the real or ledger-hybrid execution. The target ideal functionality has the
+usual application interface: named input and output parties, their prescribed
+adaptive corruptions, and the intended outputs. It contains no committees,
+randomly corrupted computation population, garbled circuits, or
+$\mathsf{WhosTurn}$. A security proof must simulate all of that protocol
+machinery from the target functionality's leakage.
+
+The final paper may keep only this interface and interpretation in the main
+text. Once the API is stable, an appendix can formulate
+$\mathcal F_{\mathsf{Ledger}}$ in UC notation and make precise ITM creation,
+private delivery and retention of $A$, synchronous timeouts, and corruption
+bookkeeping. Those details should express the API above rather than determine
+it.

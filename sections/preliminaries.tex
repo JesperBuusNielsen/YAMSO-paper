@@ -11,8 +11,8 @@ We write $\lambda$ for the security parameter, $[n]=\{1,\ldots,n\}$, and
 $\bits^*$ for the set of finite bit strings. All adversaries and protocols
 are probabilistic polynomial time unless explicitly stated otherwise, and
 $\negl(\lambda)$ denotes a negligible function. Protocol identifiers,
-epochs, wire identifiers, and ledger slots must be included in every
-cryptographic domain separator.
+epochs, wire identifiers, public-key indices, and ledger positions must be
+included in every cryptographic domain separator.
 
 \subsection{Definitions that belong in this paper}
 
@@ -20,71 +20,81 @@ The following objects are model-specific and should eventually be defined in
 full.
 
 \begin{description}
-  \item[Ledger.] An append-only, totally ordered bulletin board with an
-    explicit acceptance predicate. Each logical slot accepts at most one
-    authenticated value; later protocol steps depend on the accepted prefix,
-    not merely on the multiset of posted strings.
+  \item[Ledger.] One synchronous, append-only list $L$ seen identically by
+    every party. It begins with a generic CRS, grows by registration and
+    scheduled message entries, and performs no protocol-specific message
+    validation.
 
-  \item[Anonymous machine registry.] A finite eligible population for each
-    security experiment. Its public records are computationally
-    indistinguishable with respect to hidden role assignment. A formulation
-    may use independently registered public keys, or an anonymous IBE-style
-    master public key with unlinkable, eligibility-limited secret-key
-    extraction.
+  \item[Growing key registry.] An adversarial registration request creates a
+    computation PID equal to its fresh public key. A registration from an
+    existing application PID instead creates and publicly binds a protected
+    key to that named party. Neither request contains a protocol role;
+    registration order determines roles at the protocol level.
 
-  \item[YAMSO machine.] A machine either appends one protocol message during
-    its lifetime or remains silent forever. After an append, its complete
-    prior state is exposed. Role reuse must be forbidden, since exposing one
-    role would otherwise expose a future role stored by the same machine.
+  \item[YAMSO turn.] A public initialization parameter
+    $\mathsf{WhosTurn}$ selects one unspent PID from the current $L$. The
+    selected party either produces one message or receives an explicit
+    $\mathsf{NoMsg}$ entry and is then spent forever.
 
-  \item[Strong input provider.] An exceptional party may append a prescribed
-    function of its state rather than the state itself. If it is later
-    corrupted, the ideal process releases its input to the simulator; if it
-    is never corrupted, its input must remain private.
+  \item[Protected local evaluation.] An honest scheduled party supplies an
+    algorithm $A$ privately to the ledger, which evaluates $A(sk,L)$ without
+    first returning $sk$ to the party. This lets an ordinary role reveal its
+    entire key and lets an input role reveal only an input-dependent function
+    of its state through the same generic interface.
 
-  \item[Role-oblivious corruption.] The adversary may adaptively inspect a
-    bounded fraction of the machine universe, but unopened machines remain
-    exchangeable. Discovering one committee member must not provide a test
-    for identifying another unopened member.
+  \item[Two corruption rules.] Each computation PID is independently corrupt
+    with probability $p$ when registered and, if honest, cannot later be
+    corrupted. Named application parties instead have the ordinary adaptive
+    corruption interface. Their protected keys and retained calls are exposed
+    upon corruption.
 \end{description}
 
 \subsection{Primitives that can largely be imported}
 
 Standard definitions of pseudorandom functions, commitments, signatures,
-secret sharing, and circuit garbling need not be repeated in full. We should
-state the exact variants used and cite them. The following nonstandard
-interfaces do require care.
+secret sharing, public-key encryption, and circuit garbling need not be
+repeated in full. We should state the exact variants used and cite them. The
+following interfaces require particular care.
 
 \begin{description}
-  \item[Anonymous delivery.] Message privacy alone is insufficient: a ledger
-    ciphertext must hide which registered key can decrypt it. We need a
-    multi-user, key-private or anonymous encryption definition, together with
-    correctness under recipient discovery. If ciphertexts are intended to
-    look like unrelated ledger traffic, pseudorandom-ciphertext security must
-    also be stated.
+  \item[Role-state encryption.] Protocol roles and recipient public keys may
+    be public in the preliminary model. Ordinary multi-user encryption can
+    therefore protect the role state placed under each registered key; key
+    privacy is not required merely to hide committee membership. The
+    semantic association between the two branch committees for an input wire
+    must nevertheless remain hidden.
+
+  \item[Signatures.] The protected ledger evaluation signs honest messages
+    using the signing component of the registered secret key. The ledger
+    itself accepts arbitrary corrupt messages; signature verification and
+    all other syntax checks are performed by the protocol reading $L$.
 
   \item[Verifiable threshold sharing.] The construction needs privacy below
-    the reconstruction threshold, liveness from the honest members, and
-    public rejection of malformed shares. We can import a standard scheme
-    once the corruption threshold and synchrony assumptions are fixed.
+    the reconstruction threshold, reconstruction from honest shares, and
+    public rejection of malformed shares or keys. We can import a standard
+    scheme once the exact representation of publicly revealed role state is
+    fixed.
 
   \item[Garbled circuits.] We can import the usual garbling syntax and privacy
-    guarantee. The paper must separately prove that post-speech exposure of
-    a selected label committee reveals no information beyond the label that
-    is already reconstructed on the ledger.
+    guarantee. The paper must separately prove that revealing the keys of a
+    selected label committee exposes no information beyond the label already
+    reconstructed from its decrypted role states.
 
-  \item[Universal sampling.] The setup may be phrased using the universal
-    sampler of Hofheinz et al.\ \cite{HofheinzEtAl2014UniversalSamplers}.
-    Its ordinary samples for distinct descriptions use independent ideal
-    randomness. Any ongoing construction that correlates different epochs
-    must therefore expose that correlation explicitly rather than attribute
-    it to the standard sampler definition.
+  \item[Universal sampling.] A concrete setup distribution may produce the
+    universal sampler of Hofheinz et al.\ \cite{HofheinzEtAl2014UniversalSamplers}.
+    This is a protocol choice, not part of the ledger API. Its ordinary
+    induced samples have one finite input and polynomially bounded output. The
+    universal streamer proposed in \cref{sec:ongoing} keeps a fixed finite
+    description $d$, adds an append-only sequence of public inputs, and
+    requires the induced outputs to be prefix preserving.
 \end{description}
 
 \paragraph{Open drafting decision.}
-For the first formal model it is probably cleanest to treat the ledger,
-anonymous registry, and role assignment as ideal resources, while using
-standard cryptographic primitives for label sharing and garbling. A later
-section can then separate implementations of the setup---ordinary anonymous
-public keys, anonymous IBE, or universal sampling---from the core YAMSO
-phenomenon.
+The main text will for now use the generic ledger interface of
+\cref{sec:model} and put all role assignment, ciphertext derivation,
+threshold sharing, and garbling in the protocol. Once the API and proof are
+stable, a detailed $\mathcal F_{\mathsf{Ledger}}$ can be placed in an appendix
+without forcing the construction to depend on UC bookkeeping details. The
+target functionality will contain only the named application parties; the
+randomly corrupted computation population is an implementation device to be
+simulated away.
