@@ -1,0 +1,110 @@
+\subsection{Projective Garbling}
+\label{sec:garbling}
+
+Bellare, Hoang, and Rogaway~\cite{BellareHoangRogaway2012Foundations}
+gave a systematic formalization of garbling schemes as a standalone
+cryptographic primitive and of their security notions.  We use the
+three-algorithm presentation of Hemenway et al.\
+\cite[full version, Section~3, Definition~1]{HemenwayEtAl2016AdaptiveGarbling}, which
+fits our separation between preparing a garbled circuit and later
+releasing its encoded input.  We require projectivity and adaptive
+simulation privacy.
+
+\subsubsection{Syntax and correctness}
+Let $C:\bits^n\to\bits^m$ be a Boolean circuit.  A garbling scheme
+consists of three polynomial-time algorithms:
+\begin{description}
+  \item[$\Garble(1^\lambda,C)\to(\GC,e)$.]
+    Randomly generate a public garbled circuit $\GC$ and a private
+    input-encoding key $e$.
+  \item[$\Encode(e,x)\to X$.]
+    Deterministically encode an input $x\in\bits^n$ as a garbled input $X$.
+  \item[$\Eval(\GC,X)\to y$.]
+    Deterministically evaluate the garbled circuit, returning
+    $y\in\bits^m$ or $\bot$.
+\end{description}
+Correctness requires that, for every polynomial-size circuit family and
+every corresponding input family
+\[
+  \Pr_{(\GC,e)\sample\Garble(1^\lambda,C)}
+  \bigl[\Eval(\GC,\Encode(e,x))=C(x)\bigr] \ge 1-\negl(\lambda).
+\]
+
+The scheme is \emph{projective} if $e$ specifies two labels
+$L_{w,0},L_{w,1}$ for each input wire $w\in\{1,\ldots,n\}$ and
+possibly common auxiliary material $\GarbleAux$, such that
+\[
+  \Encode(e,x)
+    =\bigl(\GarbleAux,L_{1,x_1},\ldots,L_{n,x_n}\bigr).
+\]
+Labels and auxiliary material are polynomial-length strings; we do not
+require them to have length $\lambda$.  For fixed $e$, the common part
+$\GarbleAux$ is independent of $x$ and may be empty.  Only $\GC$ is
+released initially; $\GarbleAux$ is released with the selected labels.
+It may contain output-decoding information or a key needed to unlock
+the garbled circuit.  Separating this common part is a notational
+convenience, not an additional security property.
+
+\subsubsection{Adaptive privacy}
+Write $\Topo(C)$ for the circuit's wiring and designated input
+and output wires, without the functions computed by its gates.  We allow
+this topology to be public.  A simulator consists of two efficient
+algorithms $\mathcal S=(\SimGarble,\SimEncode)$.
+
+The experiments $\GarbleReal_{\mathcal A}(1^\lambda)$ and
+$\GarbleIdeal_{\mathcal A,\mathcal S}(1^\lambda)$ initially give
+$1^\lambda$ to the efficient adversary $\mathcal A$ and offer these
+commands:
+\begin{description}
+  \item[$\GarbleCircuit(C)$.]
+    Store $C$.  In the real experiment, compute
+    $(\GC,e)\sample\Garble(1^\lambda,C)$.
+    In the ideal experiment, compute
+    $(\GC,\SimState)\sample
+    \SimGarble(1^\lambda,\Topo(C))$.
+    Return $\GC$, retaining $e$ or $\SimState$ privately.
+  \item[$\EncodeInput(x)$.]
+    For $x\in\bits^n$, compute $X\gets\Encode(e,x)$ in the
+    real experiment.  In the ideal experiment, compute
+    $X\sample\SimEncode(\SimState,C(x))$.  Return $X$.
+  \item[$\Finish(b)$.]
+    Terminate and output $b\in\bits$.
+\end{description}
+There is at most one accepted $\GarbleCircuit$ command, followed
+by at most one accepted $\EncodeInput$ command.  Malformed,
+out-of-order, or repeated commands return $\bot$ without changing state.
+The adversary may terminate early; termination without an output bit is
+interpreted as $\Finish(0)$.
+
+\begin{definition}[Adaptive garbling privacy]
+\label{def:adaptive-garbling}
+A garbling scheme has adaptive simulation privacy if there exists an
+efficient simulator $\mathcal S$ such that, for every efficient adversary
+$\mathcal A$, there is a negligible function $\varepsilon_{\mathcal A}$
+satisfying
+\[
+  \left|
+    \Pr[\GarbleReal_{\mathcal A}(1^\lambda)=1]
+    -\Pr[\GarbleIdeal_{\mathcal A,\mathcal S}(1^\lambda)=1]
+  \right|\leq\varepsilon_{\mathcal A}(\lambda).
+\]
+\end{definition}
+
+Thus the simulator produces $\GC$ before learning the output, and later
+produces $X$ from $C(x)$ alone, without receiving $x$ or the gate
+functions.  The adversary chooses $x$ after seeing $\GC$, but chooses
+all of $x$ before receiving $X$.  This is the coarse-grained adaptive
+privacy notion $\PrvOne$ of Bellare, Hoang, and Rogaway~
+\cite{BellareHoangRogaway2012Adaptive}; it does not permit several
+input encodings for the same garbling.  Here adaptivity concerns input
+selection, not corruption of a garbler.
+
+\subsubsection{Existence}
+\begin{theorem}[Hemenway et al.]
+\label{thm:adaptive-garbling}
+If one-way functions exist, then projective garbling schemes with
+adaptive simulation privacy exist in the standard model.
+\end{theorem}
+This follows from the projective construction and
+\cite[full version, Corollary~2]{HemenwayEtAl2016AdaptiveGarbling}.  We use the scheme
+as a black box.

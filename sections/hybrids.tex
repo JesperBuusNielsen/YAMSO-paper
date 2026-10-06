@@ -1,0 +1,199 @@
+\section{Hybrid Proof Sketch}
+\label{sec:hybrids}
+
+We sketch a sequence from the simulator of Section~\ref{sec:simulator}
+to the real execution.  The main order is to restore the encrypted
+states first, then the garblings containing the decryption keys, then
+the private deliveries, and finally public sampling.  Each cryptographic
+step is a family of one-challenge reductions: we finish that type of
+replacement across the execution before proceeding to the next type.
+We assume throughout that all committees satisfy their honesty
+thresholds; choosing parameters to ensure this is separate from the
+hybrid argument.
+
+Until the last step, retain $\SimSetup$ and $\SimRO$ as algorithms
+using the memoized service $\SimSample$.  The hybrids change that
+service and the simulated party behaviour.  The entire public-sampling
+computation, including the adversary's local evaluations, remains part
+of each reduction.  We are not assuming an additional interface for
+programming universal samples.
+
+For the analysis, run the ideal computation inside the hybrid experiment.
+Its internal record gives the reduction the actual inputs, outputs, and
+states $\sigma_s$.  These values are not disclosed to the adversary or
+environment.  This is proof bookkeeping, not extra information supplied
+to the implementable simulator.
+
+\paragraph{Nonce freshness.}
+First establish that the service has not already answered the eventual
+description $d_s$ before its non-nonce fields are frozen.  Work in an
+auxiliary experiment stopped before the first honest nonce-committee
+key is disclosed.  Message privacy of the nonce-share encryption hides
+the honest shares, while threshold privacy hides $Q_s$ from the corrupt
+shares.  The needed encryption privacy follows from RNCE security;
+its dummy-message explanation also accounts for the simulator's
+nonce-only keys.  Thus a premature query must guess a hidden uniform
+nonce.  Count every service query, including queries made internally by
+$\SimSetup$ and $\SimRO$, not only evaluations declared by the adversary.
+Apply this argument up to the first premature hit along the nonce chain.
+
+This stopped argument need not explain the substituted nonce packets
+after their keys are revealed.  In the main hybrids, the nonce packets
+are unchanged.  Robust reconstruction fixes the nonce uniquely, and
+the remaining description fields cannot change after its release.
+Keep the early-query abort in the games; its negligible probability
+then transfers through the indistinguishable hybrids below.
+
+\begin{description}
+  \item[$H_0$: the simulated execution.]
+    Start with the stated simulator: topology-only simulated garblings,
+    non-committing deliveries, and state ciphertexts
+    $c_s\sample\Enc(\statepk_{s+1},0^{|\sigma_s|})$.
+    Selected sharings are completed only when the simulated input
+    encoding is available.
+
+  \item[$H_1$: restore the plaintext states.]
+    Replace the state ciphertexts, one transfer at a time, by
+    \[
+      c_s\sample\Enc(\statepk_{s+1},\sigma_s).
+    \]
+    All garblings and the honest label deliveries remain simulated.
+    For a target transfer, use the IND-CPA challenger's public key as
+    $\statepk_{s+1}$ and call
+    \[
+      \Challenge(0^{|\sigma_s|},\sigma_s).
+    \]
+    The reduction knows $\sigma_s$ from the internal ideal computation.
+    It never needs the challenge secret key: the successor's
+    $\SimGarble$ uses only topology, and its $\SimEncode$ is given the
+    prescribed output rather than decrypting the incoming ciphertext.
+    No real garbling containing that key is present.
+    This is the use of IND-CPA security from
+    Definition~\ref{def:ind-cpa}.
+
+  \item[$H_2$: choose hidden constants early.]
+    Rewrite the experiment to choose each private input permutation
+    $\pi_w$ and output pad $r_i$ when its round is prepared, and later use
+    \[
+      j=b\oplus\pi_w,\qquad z_i=y_i\oplus r_i.
+    \]
+    This is the same distribution as choosing uniform $j$ or $z_i$
+    first and explaining the hidden value afterward.  Before their
+    exposure or use, the simulated deliveries and garblings reveal
+    neither $\pi_w$ nor $r_i$.  Earlier output-recipient corruption
+    simply exposes the already-chosen pad.
+
+    Also choose the outgoing state-encryption coins $\rho_s$ at
+    preparation rather than evaluation.  They have no earlier observable
+    use while the garbling remains simulated.  This exact
+    deferred-decisions change is made \emph{after} the IND-CPA sweep:
+    that sweep therefore did not require knowledge of the challenger's
+    encryption coins.  Each augmented circuit $C_s$ is now fully
+    specified when its garbling is requested.
+
+  \item[$H_3$: restore the garblings.]
+    Replace the simulated garblings by real garblings, one round at a
+    time, leaving all honest label-delivery ciphertexts simulated.
+    For the target round $s$, generate its genuine state-transfer keys
+    and construct $C_s$ with $\statesk_s$, its output pads, and
+    $\rho_s$ hardcoded.  At sample preparation, call
+    $\GarbleCircuit(C_s)$.  Once the complete input is fixed, call
+    $\EncodeInput(\xi_s)$, where $\xi_s$ consists of the application
+    bits, incoming state ciphertext, and successor public key.
+
+    Since all state ciphertexts now carry the correct states,
+    correctness of state decryption gives
+    \[
+      C_s(\xi_s)=
+      \bigl(y_s\oplus r_s,\,
+        \Enc(\statepk_{s+1},\sigma_s;\rho_s)\bigr),
+    \]
+    with $r_s$ the vector of output pads.  This is precisely the output
+    previously supplied to $\SimEncode$.  The first round uses the
+    prescribed empty state.
+
+    The game returns only the selected input encoding.  That is enough:
+    use $\CompleteShares$ to complete each selected committee's fixed
+    corrupt shares to the returned label bundled with $\GarbleAux$,
+    and explain the honest members' RNCE packets before their keys are
+    posted.  Neither inactive labels nor the encoding key are needed
+    by this reduction.
+    This is the use of adaptive garbling privacy from
+    Definition~\ref{def:adaptive-garbling}: inputs arrive after the
+    garbling, and simulation reveals only topology rather than embedded
+    gate constants.
+
+    The garbling reduction knows $\statesk_s$ because it generates the
+    state keys itself.  It is a different reduction from the earlier
+    IND-CPA reduction; there is no requirement to retain that reduction's
+    unknown challenge key.
+
+  \item[$H_4$: prepare both committee sharings early.]
+    All garblings are now real.  The reduction for the next step can
+    generate them locally and retain their full encoding keys.
+    For each wire, complete both committee sharings during sampling,
+    using independent sharing randomness for the two labels and their
+    bundled common material.  Condition on the corrupt shares that were
+    fixed first.
+
+    Perfect threshold privacy and
+    Lemma~\ref{lem:sharing-completion} show that this has the same
+    distribution as honest sharing, or as completing the selected branch
+    later.  Unselected honest members remain silent.  This exact rewrite
+    makes every delivery plaintext available at sample preparation.
+
+  \item[$H_5$: restore genuine deliveries.]
+    Apply receiver non-committing security, one delivery key at a time.
+    For a target key, call $\GetPublicKey$ at registration,
+    $\EncryptMessage$ with its actual packet when the designated sample
+    is prepared, and $\CorruptReceiver$ when its key must be disclosed.
+    For a selected committee member, this last call is before its
+    posting; for an output recipient, it is at its chosen corruption.
+    An inactive honest member need never be exposed.
+    The returned receiver tape accounts for the full retained state,
+    not merely a decryption key.
+
+    If an output key is exposed before its designated sample, or is
+    assigned only to a nonce committee, use $\EncryptMessage$ on a
+    dummy message, discard that ciphertext without publishing it, and
+    call $\CorruptReceiver$.  Later visible ciphertexts under this
+    fixed key are ordinary encryptions.  Ciphertexts in other sampling
+    descriptions are likewise generated locally.
+    This is the use of Definition~\ref{def:receiver-nce}.
+    It comes after the garbling sweep because the reduction now knows
+    both labels and hence all share packets when $\EncryptMessage$
+    must be called.
+
+  \item[$H_6$: restore public universal sampling.]
+    The service now generates an honest sample $d(r_d)$ with independent
+    uniform randomness for each new description.  The early-query abort
+    can be removed at negligible cost.  Apply
+    Definition~\ref{def:adaptive-universal-sampler} to replace
+    $\SimSetup$ and $\SimRO$ with real setup and the random oracle.
+    Its indistinguishability clause hides this change, and its
+    honest-sample consistency clause ensures that public evaluations
+    agree with the samples used to run the parties.  Consistency can
+    also be checked in the preceding hybrids and transferred by the
+    same comparisons.
+
+    At this point all sampled data, keys, and party messages have their
+    real distributions.  Robust reconstruction and correctness of
+    encryption and garbling identify the delivered outputs and state
+    transitions with the real protocol.
+\end{description}
+
+Each sweep ranges over the polynomially many rounds or roles in the
+particular efficient experiment being analysed.  This is not a
+setup-time bound on the number of rounds.  The outline separates exact
+distributional rewrites from cryptographic comparisons; formalizing the
+one-challenge reductions and their losses is the remaining proof work.
+
+\paragraph{Activation checks.}
+The current input phase admits only the designated input providers,
+each protected until its single irrevocable posting.  Under this
+restriction there is no additional activation-forgery step in the
+sequence above.  If other corrupt roles are allowed to submit
+activations during that phase, one-wayness of the authorization images
+must additionally exclude a valid preimage arriving before the honest
+provider's post.  The first-valid-post rule handles subsequent exposure
+in either case.

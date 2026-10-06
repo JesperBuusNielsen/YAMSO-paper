@@ -1,6 +1,6 @@
-# The YAMSO Model: YOSO without Erasure
+# The YASO Model: YOSO without Erasure
 
-This is the public source repository for the collaborative YAMSO manuscript.
+This is the public source repository for the collaborative YASO manuscript.
 The default branch `main` is the shared source of truth for both local editing
 and Overleaf.
 

@@ -1,0 +1,124 @@
+\section{Introduction}
+\label{sec:introduction}
+
+The YOSO (You Only Speak Once) model was introduced as a way to obtain secure
+multiparty computation against a very strong adaptive adversary
+\cite{GentryEtAl2021YOSOFull}. A protocol role is assigned to an ephemeral
+party which prepares one message, deletes the secret state used to prepare
+it, and then sends the message. Only at this point does the role reveal
+itself. Corrupting the sender after publication is therefore too late: the
+message is already available and the secrets that produced it no longer
+exist. Later work has developed this anonymous, ephemeral-role paradigm in
+several directions; the erase-before-send discipline remains central.
+
+This paper starts from the deliberately unfriendly question: what if deletion
+is impossible? The restriction might be legal---a regime may require state
+to be retained for later inspection---or technological. For example, a
+party running in a cloud environment might fear that speaking identifies its
+machine and enables the cloud operator to inspect a residual snapshot despite
+an attempted deletion. We capture the extreme version of this concern by
+declaring that whenever an ordinary party speaks, its complete state leaks to
+the adversary.
+
+The immediate answer seems to be ``obviously impossible.'' Eventually all
+parties relevant to the computation will speak and hence reveal everything.
+This conclusion overlooks one asymmetry. Speaking is optional. A machine may
+remain silent forever, in which case its secret state may stay hidden. We
+therefore place mutually exclusive pieces of state behind different
+public-key roles. The selected roles speak and are expended; the unselected
+roles never speak. In this sense, silence replaces erasure as the one-time
+resource.
+
+We call the resulting setting \emph{YAMSO}: You At Most Speak Once. In a
+YAMSO execution, a synchronous ledger maintains a growing ordered list of
+public keys and messages. The public-key index determines the protocol role.
+For the preliminary model, each newly registered computation role is corrupted
+independently with probability $p$, whereas named application parties retain
+the ordinary corruption interface. An honest role keeps its secret key inside
+a protected ledger interface until its scheduled opportunity to speak. Once a
+computation role speaks, its key and complete role state may become public;
+its message is already irrevocable and the role is never used again.
+
+The intended real-world interpretation has a much larger population of
+apparently interchangeable machines. The adversary compromises a fixed
+fraction of that population, while fresh clients and role states are placed
+on machines randomly and without exposing the placement before a machine is
+corrupted or speaks. Random placement then turns the fixed compromised set
+into an approximately random intersection with each protocol committee. The
+Bernoulli experiment in this paper deliberately collapses that mechanism into
+a simple model; it does not model mobile corruption.
+
+\paragraph{Finite feasibility.}
+The basic two-phase blueprint isolates why the model need not be vacuous. For
+each garbled input wire, the two structural labels are placed behind disjoint
+committees, their semantic order is hidden, and an activation token causes
+only one committee to speak. Its complete exposed state contains shares of a
+label that is becoming public anyway. Honest members of the sibling committee
+remain silent forever and protect the unused label. A missing or malformed
+input closes onto a fixed structural branch whose hidden semantic value is a
+uniform default bit.
+
+\paragraph{Ongoing computation.}
+The difficult part is not evaluating another garbled circuit; it is preserving
+the hidden correlation between the current state-label pair and every later
+stretch without giving a speaking linker both labels. We propose a finite
+public \emph{oblivious garbled-circuit sampler} (OGCS), implemented
+conjecturally by an obfuscated streaming program. It fixes one public
+transition circuit, receives a growing sequence of certified public inputs,
+and emits exactly prefix-preserving garbled stretches. The output-state label
+pairs of one stretch are literally the input-state pairs of the next.
+
+A copyable obfuscated program can otherwise be evaluated on invented public
+keys and forked ledger histories. Our second use of silence is therefore a
+one-time common-input certificate. Each bit of a high-distance encoding is
+represented by two one-way preimages placed in different one-use roles. The
+role matching the canonical message speaks; its opposite remains silent.
+After the correct certificate is public, the speakers may reveal everything
+without enabling a conflicting certificate. This observation removes the
+long-lived certification key we initially appeared to need. The ledger still
+provides a common immutable view, but it need not hold a signing secret.
+
+This is an instance of the model changing the design intuition. If a single
+certifier speaks, its leaked signing key destroys future authenticity. The
+natural reaction is to declare certification impossible. YAMSO instead asks
+which secret holders need never speak. The resulting construction is closely
+related to known high-distance Lamport signatures, but its use as persistent
+common truth under total post-speech exposure is the mechanism we need here.
+
+\paragraph{Status and proof strategy.}
+The ongoing construction is intentionally presented as a candidate, not a
+theorem. We modularize its analysis by three whole-process replacement lemmas:
+canonical one-use certification, programmable prefix-preserving OGCS, and
+two-stage finite garbling/readout with full speaker exposure. This avoids a
+naive UC-hybrid decomposition whose interfaces would export internal keys to
+the environment. The first version fixes corrupt input providers before setup
+and has public outputs. Two central realization gaps remain: the cited
+general-purpose ordinary-iO-based succinct TM-iO is bounded-input rather
+than horizon free, and predictable random-oracle points do not yet support
+one online simulator. A hidden nonce prepared one
+stretch ahead is the intended lift for the second gap.
+
+\paragraph{Relation to prior work.}
+Our starting point is YOSO \cite{GentryEtAl2021YOSOFull}. Anonymous blockchain
+committees tolerating a corruption rate around one quarter are known, but
+their secret handoff relies on erasures
+\cite{BenhamoudaEtAl2020BlockchainSecret}. Blockchain one-time programs
+already demonstrate conditional release of one garbled input-label vector on
+an immutable ledger \cite{GoyalGoyal2017Blockchains}. No-erasure hidden
+committees also appear in communication-local MPC, although there the selected
+committee runs an ordinary multi-round computation
+\cite{ChandranEtAl2024CommunicationLocalMPC}.
+
+For certification, Katz and Vaikuntanathan give a direct high-distance
+Lamport precedent \cite{KatzVaikuntanathan2009LeakageSignatures}, and Kelsey,
+Lang, and Lucks study distributed hash-based signing and the
+disjoint-honest-trustees one-time-key-reuse problem in the absence of
+broadcast \cite{KelseyLangLucks2025DistributedHBS}. Neither result states
+our one-shot common-input property under post-speech full exposure. For the
+streaming component, relevant technical precedents include universal samplers,
+cryptographic iterators, succinct and reusable garbling, TM obfuscation, and
+streaming functional encryption
+\cite{HofheinzEtAl2014UniversalSamplers,KoppulaLewkoWaters2014IOTM,%
+LinPass2014SuccinctGarbling,GoldwasserEtAl2013TuringMachines,%
+GuanKorbSahai2022StreamingFE}. We use these as component precedents rather
+than claiming that an existing theorem already gives the YAMSO construction.

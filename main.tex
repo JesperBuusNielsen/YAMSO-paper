@@ -1,4 +1,4 @@
-\documentclass[runningheads,a4paper]{llncs}
+\documentclass[runningheads,a4paper,12pt]{llncs}
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
@@ -6,13 +6,13 @@
 \usepackage{microtype}
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage[hidelinks]{hyperref}
-\usepackage[nameinlink,noabbrev]{cleveref}
+\usepackage[nameinlink,noabbrev]{cleveref} 
 
 \input{macros}
-
-\title{The YAMSO Model: YOSO without Erasure}
-\titlerunning{The YAMSO Model}
-\author{Jesper Buus Nielsen\inst{1} \and Ivan Damg{\aa}rd\inst{1} \and
+ 
+\title{The YASO Model: YOSO without Erasure}
+\titlerunning{The YASO Model}
+\author{Jesper Buus Nielsen\inst{1} \and Ivan Damg{\aa}rd\inst{1} \and 
   Sannidhi V. Hebbar\inst{2}}
 \authorrunning{J. B. Nielsen et al.}
 \institute{Aarhus University, Denmark\\
@@ -22,33 +22,17 @@
   \email{sannidhiv@iisc.ac.in}}
 
 \begin{document}
-
 \maketitle
+% Keep natural paragraph and display spacing on pages with long formulas.
+\raggedbottom
 
-\begin{abstract}
-The YOSO paradigm protects against a strongly adaptive adversary. Each
-ephemeral role prepares one message, erases all remaining state, and only
-then speaks. We ask what remains possible when erasure is unavailable and
-speaking instead exposes the sender's complete state. At first sight, such a
-model appears useless. Nevertheless, it has a different irreversible
-resource: a machine may choose never to speak, in which case the secret state
-assigned to it can remain hidden. We call the resulting model YAMSO, for ``You
-At Most Speak Once.'' This preliminary article introduces the model,
-describes a basic finite construction from randomly corrupted public-key
-roles and garbled circuits, and proposes a universal streamer---a
-prefix-consistent extension of universal sampling---as a candidate tool for
-an indefinitely garbled computation.
-\keywords{adaptive security \and YOSO \and erasure-free protocols \and
-one-time roles \and garbled circuits \and universal sampling}
-\end{abstract}
-
+\input{sections/abstract}
 \input{sections/introduction}
 \input{sections/preliminaries}
-\input{sections/model}
-\input{sections/basic-construction}
-\input{sections/ongoing-computation}
+\input{sections/technical-overview}
+\input{sections/simulator}
+\input{sections/hybrids}
 
 \bibliographystyle{splncs04}
 \bibliography{bibliography}
-
 \end{document}

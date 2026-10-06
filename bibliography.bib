@@ -1,15 +1,235 @@
-% Checked sources cited by the shared manuscript. Prefer authoritative
-% IACR ePrint full versions where available.
+% Cite published conference/journal records whenever available. Keep the
+% authoritative IACR ePrint full version as an additional technical source.
 
-@misc{GentryEtAl2021YOSOFull,
+@article{Shamir1979SecretSharing,
+  author    = {Adi Shamir},
+  title     = {How to Share a Secret},
+  journal   = {Communications of the ACM},
+  volume    = {22},
+  number    = {11},
+  pages     = {612--613},
+  year      = {1979},
+  doi       = {10.1145/359168.359176},
+}
+
+@article{McElieceSarwate1981SecretSharing,
+  author    = {Robert J. McEliece and Dilip V. Sarwate},
+  title     = {On Sharing Secrets and {Reed--Solomon} Codes},
+  journal   = {Communications of the ACM},
+  volume    = {24},
+  number    = {9},
+  pages     = {583--584},
+  year      = {1981},
+  doi       = {10.1145/358746.358762},
+}
+
+@article{HazayEtAl2025Resampling,
+  author    = {Carmit Hazay and Muthuramakrishnan Venkitasubramaniam
+               and Mor Weiss},
+  title     = {Protecting Distributed Primitives Against Leakage:
+               Equivocal Secret Sharing and More},
+  journal   = {Journal of Cryptology},
+  volume    = {38},
+  number    = {1},
+  pages     = {1},
+  year      = {2025},
+  doi       = {10.1007/s00145-024-09524-3},
+  url       = {https://eprint.iacr.org/2022/497},
+  note      = {Article 1. Conference version: ITC 2022,
+               doi:10.4230/LIPIcs.ITC.2022.3.
+               Full version: Cryptology ePrint Archive, Paper 2022/497},
+}
+
+@inproceedings{GoldwasserMicali1982Encryption,
+  author    = {Shafi Goldwasser and Silvio Micali},
+  title     = {Probabilistic Encryption and How to Play Mental Poker
+               Keeping Secret All Partial Information},
+  booktitle = {Proceedings of the Fourteenth Annual ACM Symposium
+               on Theory of Computing},
+  pages     = {365--377},
+  publisher = {ACM},
+  year      = {1982},
+  doi       = {10.1145/800070.802212},
+}
+
+@article{GoldwasserMicali1984Encryption,
+  author    = {Shafi Goldwasser and Silvio Micali},
+  title     = {Probabilistic Encryption},
+  journal   = {Journal of Computer and System Sciences},
+  volume    = {28},
+  number    = {2},
+  pages     = {270--299},
+  year      = {1984},
+  doi       = {10.1016/0022-0000(84)90070-9},
+}
+
+@inproceedings{BellareEtAl1998EncryptionNotions,
+  author    = {Mihir Bellare and Anand Desai and David Pointcheval
+               and Phillip Rogaway},
+  title     = {Relations Among Notions of Security for Public-Key
+               Encryption Schemes},
+  booktitle = {Advances in Cryptology -- CRYPTO '98},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {1462},
+  pages     = {26--45},
+  publisher = {Springer},
+  year      = {1998},
+  doi       = {10.1007/BFb0055718},
+  url       = {https://cseweb.ucsd.edu/~mihir/papers/relations.pdf},
+  note      = {Full version, June 2001; earlier version:
+               Cryptology ePrint Archive, Paper 1998/021},
+}
+
+@inproceedings{CanettiEtAl1996AdaptiveMPC,
+  author    = {Ran Canetti and Uriel Feige and Oded Goldreich and Moni Naor},
+  title     = {Adaptively Secure Multi-Party Computation},
+  booktitle = {Proceedings of the Twenty-Eighth Annual ACM Symposium
+               on Theory of Computing},
+  pages     = {639--648},
+  publisher = {ACM},
+  year      = {1996},
+  doi       = {10.1145/237814.238015},
+  url       = {https://www.wisdom.weizmann.ac.il/~naor/PAPERS/nce.pdf},
+  note      = {Full version available from the authors},
+}
+
+@inproceedings{JareckiLysyanskaya2000AdaptiveThreshold,
+  author    = {Stanis{\l}aw Jarecki and Anna Lysyanskaya},
+  title     = {Adaptively Secure Threshold Cryptography:
+               Introducing Concurrency, Removing Erasures},
+  booktitle = {Advances in Cryptology -- EUROCRYPT 2000},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {1807},
+  pages     = {221--242},
+  publisher = {Springer},
+  year      = {2000},
+  doi       = {10.1007/3-540-45539-6_16},
+}
+
+@inproceedings{DamgardNielsen2000NCE,
+  author    = {Ivan Damg{\aa}rd and Jesper Buus Nielsen},
+  title     = {Improved Non-committing Encryption Schemes Based on
+               a General Complexity Assumption},
+  booktitle = {Advances in Cryptology -- CRYPTO 2000},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {1880},
+  pages     = {432--450},
+  publisher = {Springer},
+  year      = {2000},
+  doi       = {10.1007/3-540-44598-6_27},
+  url       = {https://www.brics.dk/RS/00/6/BRICS-RS-00-6.pdf},
+  note      = {Full version: BRICS Report RS-00-6},
+}
+
+@inproceedings{HemenwayEtAl2016QuasiOptimalNCE,
+  author    = {Brett Hemenway and Rafail Ostrovsky and Silas Richelson
+               and Alon Rosen},
+  title     = {Adaptive Security with Quasi-Optimal Rate},
+  booktitle = {Theory of Cryptography -- TCC 2016-A, Part I},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {9562},
+  pages     = {525--541},
+  publisher = {Springer},
+  year      = {2016},
+  doi       = {10.1007/978-3-662-49096-9_22},
+  url       = {https://people.csail.mit.edu/sirichel/ncelwe.pdf},
+}
+
+@inproceedings{DachmanSoledLiuZhou2015Leakage,
+  author    = {Dana Dachman-Soled and Feng-Hao Liu and Hong-Sheng Zhou},
+  title     = {Leakage-Resilient Circuits Revisited -- Optimal Number of
+               Computing Components Without Leak-Free Hardware},
+  booktitle = {Advances in Cryptology -- EUROCRYPT 2015, Part II},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {9057},
+  pages     = {131--158},
+  publisher = {Springer},
+  year      = {2015},
+  doi       = {10.1007/978-3-662-46803-6_5},
+  url       = {https://eprint.iacr.org/2014/856},
+  note      = {Full version: Cryptology ePrint Archive, Paper 2014/856},
+}
+
+@inproceedings{BellareHoangRogaway2012Foundations,
+  author    = {Mihir Bellare and Viet Tung Hoang and Phillip Rogaway},
+  title     = {Foundations of Garbled Circuits},
+  booktitle = {Proceedings of the 2012 ACM Conference on Computer
+               and Communications Security},
+  pages     = {784--796},
+  publisher = {ACM},
+  year      = {2012},
+  doi       = {10.1145/2382196.2382279},
+  url       = {https://eprint.iacr.org/2012/265},
+  note      = {Full version: Cryptology ePrint Archive, Paper 2012/265},
+}
+
+@inproceedings{BellareHoangRogaway2012Adaptive,
+  author    = {Mihir Bellare and Viet Tung Hoang and Phillip Rogaway},
+  title     = {Adaptively Secure Garbling with Applications to
+               One-Time Programs and Secure Outsourcing},
+  booktitle = {Advances in Cryptology -- ASIACRYPT 2012},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {7658},
+  pages     = {134--153},
+  publisher = {Springer},
+  year      = {2012},
+  doi       = {10.1007/978-3-642-34961-4_10},
+  url       = {https://eprint.iacr.org/2012/564},
+  note      = {Full version: Cryptology ePrint Archive, Paper 2012/564},
+}
+
+@inproceedings{HemenwayEtAl2016AdaptiveGarbling,
+  author    = {Brett Hemenway and Zahra Jafargholi and Rafail Ostrovsky
+               and Alessandra Scafuro and Daniel Wichs},
+  title     = {Adaptively Secure Garbled Circuits from One-Way Functions},
+  booktitle = {Advances in Cryptology -- CRYPTO 2016, Part III},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {9816},
+  pages     = {149--178},
+  publisher = {Springer},
+  year      = {2016},
+  doi       = {10.1007/978-3-662-53015-3_6},
+  url       = {https://eprint.iacr.org/2015/1250},
+  note      = {Full version: Cryptology ePrint Archive, Paper 2015/1250},
+}
+
+@inproceedings{GentryEtAl2021YOSOFull,
   author       = {Craig Gentry and Shai Halevi and Hugo Krawczyk and
                   Bernardo Magri and Jesper Buus Nielsen and Tal Rabin and
                   Sophia Yakoubov},
-  title        = {{YOSO}: You Only Speak Once / Secure {MPC} with Stateless
+  title        = {{YOSO}: You Only Speak Once---Secure {MPC} with Stateless
                   Ephemeral Roles},
-  howpublished = {Cryptology ePrint Archive, Paper 2021/210},
+  booktitle    = {Advances in Cryptology -- CRYPTO 2021, Part II},
+  series       = {Lecture Notes in Computer Science},
+  volume       = {12826},
+  pages        = {64--93},
+  publisher    = {Springer},
   year         = {2021},
+  doi          = {10.1007/978-3-030-84245-1_3},
   url          = {https://eprint.iacr.org/2021/210},
+  note         = {Full version: Cryptology ePrint Archive, Paper 2021/210},
+}
+
+@inproceedings{FeigeKilianNaor1994MinimalModel,
+  author    = {Uri Feige and Joe Kilian and Moni Naor},
+  title     = {A Minimal Model for Secure Computation (Extended Abstract)},
+  booktitle = {Proceedings of the Twenty-Sixth Annual ACM Symposium on
+               Theory of Computing},
+  pages     = {554--563},
+  publisher = {ACM},
+  year      = {1994},
+  doi       = {10.1145/195058.195408},
+  url       = {https://www.wisdom.weizmann.ac.il/~naor/PAPERS/fkn.pdf},
+}
+
+@inproceedings{IshaiKushilevitz1997PSM,
+  author    = {Yuval Ishai and Eyal Kushilevitz},
+  title     = {Private Simultaneous Messages Protocols with Applications},
+  booktitle = {Proceedings of the Fifth Israel Symposium on Theory of
+               Computing and Systems},
+  publisher = {IEEE Computer Society},
+  year      = {1997},
+  doi       = {10.1109/ISTCS.1997.595170},
 }
 
 @misc{DamgardEtAl2025AsyncYOSO,
@@ -36,13 +256,30 @@
   url       = {https://eprint.iacr.org/2019/504},
 }
 
-@misc{HofheinzEtAl2014UniversalSamplers,
-  author       = {Dennis Hofheinz and Tibor Jager and Dakshita Khurana and
-                  Amit Sahai and Brent Waters and Mark Zhandry},
-  title        = {How to Generate and Use Universal Samplers},
-  howpublished = {Cryptology ePrint Archive, Paper 2014/507},
-  year         = {2014},
-  url          = {https://eprint.iacr.org/2014/507},
+@techreport{Lamport1979Signatures,
+  author      = {Leslie Lamport},
+  title       = {Constructing Digital Signatures from a One Way Function},
+  institution = {SRI International},
+  number      = {CSL-98},
+  year        = {1979},
+  month       = oct,
+  url         = {https://lamport.azurewebsites.net/pubs/dig-sig.pdf},
+}
+
+@inproceedings{HofheinzEtAl2016UniversalSamplers,
+  author    = {Dennis Hofheinz and Tibor Jager and Dakshita Khurana and
+               Amit Sahai and Brent Waters and Mark Zhandry},
+  title     = {How to Generate and Use Universal Samplers},
+  editor    = {Jung Hee Cheon and Tsuyoshi Takagi},
+  booktitle = {Advances in Cryptology -- ASIACRYPT 2016, Part II},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {10032},
+  pages     = {715--744},
+  publisher = {Springer},
+  year      = {2016},
+  doi       = {10.1007/978-3-662-53890-6_24},
+  url       = {https://eprint.iacr.org/2014/507},
+  note      = {Full version: Cryptology ePrint Archive, Paper 2014/507},
 }
 
 @misc{GoyalGoyal2017Blockchains,

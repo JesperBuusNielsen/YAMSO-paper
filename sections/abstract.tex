@@ -1,0 +1,24 @@
+\begin{abstract}
+The YOSO design pattern mitigates adaptive corruption by having each
+party prepare one message, erase its remaining state, and then send.
+Is erasure essential?  Without it, the adversary can inspect every
+speaker's entire state.  The apparent impossibility has a loophole:
+some parties may never speak, and their secrets can remain hidden.
+We call the resulting model \emph{You Atmost Speak Once} (YASO).
+We study it as a deliberately restricted theoretical model for secure
+multiparty computation, with a synchronous public ledger, random initial
+corruptions of computation parties (helpers without application inputs
+or outputs of their own),
+and chosen adaptive corruptions of application parties (which supply
+inputs or receive outputs), under role-specific timing rules.
+We give a feasibility construction for ongoing computation with no
+advance bound on the number of I/O rounds.  Independent adaptively
+secure garblings exchange state through public-key ciphertexts, and
+universal sampling removes the need for a secret-holding garbler.
+Silent committees protect unused labels, while non-committing encryption
+supports later state exposure.  The aim is to understand what remains
+possible without erasure and to identify techniques for more practical
+constructions.
+\keywords{secure multiparty computation \and adaptive security \and
+YOSO \and erasure-free protocols \and universal sampling}
+\end{abstract}

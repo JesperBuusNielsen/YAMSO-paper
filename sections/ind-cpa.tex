@@ -1,0 +1,44 @@
+\subsection{IND-CPA Public-Key Encryption}
+\label{sec:ind-cpa}
+
+Indistinguishability of encryptions originates with Goldwasser and
+Micali~\cite{GoldwasserMicali1982Encryption,GoldwasserMicali1984Encryption}.
+We use the standard chosen-plaintext formulation of Bellare et al.\
+\cite[full version, Definition~2.1]{BellareEtAl1998EncryptionNotions},
+with explicit commands.
+The algorithms $(\KeyGen,\Enc,\Dec)$, polynomial message length
+$\ell=\ell(\lambda)$, and correctness requirement are as in
+Section~\ref{sec:nce}; here we require no non-committing simulation.
+We reuse the algorithm names for this separate encryption scheme.
+In the construction, registered delivery keys use RNCE, whereas
+state-transfer keys use this IND-CPA scheme.
+
+For $b\in\bits$, the experiment $\CPAGame^b_{\mathcal A}(1^\lambda)$
+samples $(\pk,\sk)\sample\KeyGen(1^\lambda)$, gives
+$(1^\lambda,\pk)$ to $\mathcal A$, and offers these commands:
+\begin{description}
+  \item[$\Challenge(m_0,m_1)$.]
+    For $m_0,m_1\in\bits^\ell$, return
+    $c\sample\Enc(\pk,m_b)$ using fresh randomness.
+    At most one challenge is accepted.
+  \item[$\Finish(b')$.]
+    Terminate and output $b'\in\bits$.
+\end{description}
+Malformed commands and further challenges return $\bot$ without changing
+state.  Termination without an output bit is interpreted as $\Finish(0)$.
+The messages may depend on the public key.  No encryption oracle is
+needed: the adversary can run $\Enc(\pk,\cdot)$ itself, both before
+and after the challenge.
+
+\begin{definition}[IND-CPA security]
+\label{def:ind-cpa}
+The encryption scheme is IND-CPA secure if, for every efficient adversary
+$\mathcal A$, there is a negligible function $\varepsilon_{\mathcal A}$
+such that
+\[
+  \left|
+    \Pr[\CPAGame^0_{\mathcal A}(1^\lambda)=1]
+    -\Pr[\CPAGame^1_{\mathcal A}(1^\lambda)=1]
+  \right|\leq\varepsilon_{\mathcal A}(\lambda).
+\]
+\end{definition}

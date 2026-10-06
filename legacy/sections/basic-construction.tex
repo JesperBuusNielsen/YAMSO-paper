@@ -1,0 +1,189 @@
+\section{The Basic Finite Construction}
+\label{sec:basic-construction}
+
+We illustrate the central idea for one evaluation of a public Boolean circuit
+$F$.  The input providers are named application parties and the output is
+public.  Computation roles are assigned to registered computation keys by a
+public rule.  The construction uses the ledger only through the generic API
+of \cref{sec:model}; garbling, role assignment, encryption, slot closure, and
+message validation are protocol operations.  Our first proof target fixes the
+corrupt set of named input providers before setup.  The adaptive interface of
+\cref{sec:model} is retained as a later target.
+
+This section is a bounded, two-phase blueprint.  It cleanly isolates the use
+of silence, but does not by itself instantiate the sampler that correlates its
+pre-input and post-input phases.  That requirement becomes property~$Z$ in
+\cref{sec:proof-outline}; the streaming candidate of \cref{sec:ongoing}
+implements the same schedule repeatedly.
+
+\subsection{Public structural branches}
+
+Fix a ledger prefix $L_0$ containing the registered input providers and at
+least $2mk$ fresh computation keys, where $m$ is the number of input wires.
+For each wire $w$, the public role map selects two disjoint size-$k$
+committees $C^w_0$ and $C^w_1$.  All $2m$ committees are mutually disjoint,
+and no computation key is assigned another canonical role.  Their subscripts
+are \emph{structural branch indices}; they do not denote semantic bits.
+
+For concreteness, the generic setup distribution may place a finite sampler
+parameter $U_{\mathsf{fin}}$ in $\mathsf{crs}$.  Before inputs arrive, its
+preparation phase samples for each input wire
+\[
+  (K^w_0,K^w_1),\qquad (T^w_0,T^w_1),\qquad
+  \pi_w\sample S_2 .
+\]
+The garbling uses the semantic assignment
+\[
+  b\longmapsto K^w_{\pi_w(b)}.
+  \label{eq:semantic-assignment}
+\]
+Equivalently, one may view it as garbling the structurally reindexed circuit
+\[
+  F_{\boldsymbol\pi}(z)=
+  F(\pi_1^{-1}(z_1),\ldots,\pi_m^{-1}(z_m)).
+\]
+The pre-input public object $\mathsf{Prep}_F$ contains
+the encrypted role packets described below, but not yet the garbled tables.
+The complete label pairs and semantic maps remain hidden in the finite
+sampler's logical state.
+
+For public token validation, preparation publishes the branch-indexed tags
+\[
+  V^w_s=h_{\mathsf{tok}}(\mathsf{sid},w,s,T^w_s),
+  \qquad s\in\{0,1\}.
+  \label{eq:token-tags}
+\]
+Tokens have high min-entropy, and $h_{\mathsf{tok}}$ is assumed one way and
+collision resistant on the domain-separated token inputs.  Thus the tags
+allow everyone to recognize structural branch $s$ without revealing the
+token in advance or the semantic value of that branch.
+
+Label $K^w_s$ is verifiably $(t+1)$-out-of-$k$ shared among $C^w_s$, where
+$t=\lfloor(k-1)/3\rfloor$.  For each member with public key $pk_i\in C^w_s$,
+$\mathsf{Prep}_F$ contains
+\[
+  D_i=\mathsf{Enc}_{pk_i}
+      (w,s,T^w_s,\mathsf{share}_{i,s},
+       \mathsf{verification\ data}).
+  \label{eq:finite-role-packet}
+\]
+It similarly contains, under the registered key of the application party
+providing wire $w$, an encrypted packet specifying the map
+$b\mapsto T^w_{\pi_w(b)}$.  Packet lengths, ordering, verification data, and
+ciphertext distributions are symmetric in the two structural branches.
+Neither $\pi_w$ nor the semantic bit represented by a public committee is
+revealed.
+
+The fixed $\mathsf{WhosTurn}$ waits until $L_0$ exists and then schedules the
+provider keys and role keys in a canonical order.  Registration itself has no
+role argument.
+
+\subsection{Input activation and irrevocable default}
+
+When the provider for wire $w$ is scheduled, an honest provider with input
+$x_w$ supplies a protected algorithm $A_{w,x_w}$ to the ledger.  The
+algorithm derives $\mathsf{Prep}_F$, decrypts the provider packet using
+$sk_P$, and returns the tagged structural token $T^w_{\pi_w(x_w)}$.  The
+ledger appends this output without revealing $sk_P$, the other token, or the
+input-dependent algorithm.
+
+A corrupt provider may instead put any string in its turn.  At a fixed cutoff
+the protocol derives one irrevocable close record $m_w$.  Define
+\[
+  \mathsf{Valid}_w(m)=s
+  \quad\Longleftrightarrow\quad
+  h_{\mathsf{tok}}(\mathsf{sid},w,s,m)=V^w_s
+\]
+for exactly one $s\in\{0,1\}$; otherwise set
+$\mathsf{Valid}_w(m)=\bot$.  A $\mathsf{NoMsg}$ record, malformed string,
+ambiguous match, and late entry all give $\bot$.  The effective structural
+branch is
+\[
+  s_w=\begin{cases}
+       \mathsf{Valid}_w(m_w),&\mathsf{Valid}_w(m_w)\neq\bot,\\
+       0,&\mathsf{Valid}_w(m_w)=\bot.
+      \end{cases}
+  \label{eq:finite-default}
+\]
+Because $\pi_w$ is uniform and hidden, default branch $0$ has semantic value
+$\pi_w^{-1}(0)$, a uniform bit.  A corrupt provider that has opened its own
+packet knows the semantic map and may choose its effective input, just as a
+corrupt ideal input party may.
+
+The roles, not a protocol-aware ledger, implement this rule.  Committee
+$C^w_s$ speaks precisely if $\mathsf{Valid}_w(m_w)=s$, or if
+$\mathsf{Valid}_w(m_w)=\bot$ and $s=0$.  In particular, $C^w_0$ can
+distinguish a valid branch-$1$ token from a malformed token using the public
+tags and therefore does not speak in the former case.  Closure must precede
+the default release: otherwise a malformed message followed by a late valid
+token could expose both labels.
+
+\subsection{Conditional key release and evaluation}
+
+Each computation member is scheduled once.  Its honest protected algorithm
+derives its canonical $D_i$, decrypts it with $sk_i$, checks the public close
+record and token tags, and returns $sk_i$ exactly under the rule above;
+otherwise it returns $\bot$.  The selected committee therefore reveals its
+keys, while every honest member of the sibling committee produces only a
+$\mathsf{NoMsg}$ timeout and keeps its key hidden forever.
+
+The ledger performs no validation.  Protocol observers ignore a purported
+key unless $\mathsf{KeyMatch}(pk_i,sk_i)$ holds, decrypt $D_i$ themselves,
+and reject malformed shares using the public verification data.  Conditioned
+on $\mathsf{Good}$, the selected committee has enough honest members to reveal
+at least $t+1$ valid shares despite corrupt withholding.  Everyone
+reconstructs exactly one active structural label: $K^w_{\pi_w(x_w)}$ for a
+valid honest input and $K^w_0$ for a defaulted input.
+
+Only after all input slots close does the completion phase emit the public
+garbled tables $\widetilde F$ and output-decoding information, using the
+label pairs and assignment in \eqref{eq:semantic-assignment}.  All parties
+evaluate $\widetilde F$ from the reconstructed active labels and decode the
+public output.  This order is important for the intended straight-line
+simulation: the ideal public output is available before the tables must be
+fixed.  Publishing the tables before input closure would instead require an
+online or adaptively simulatable garbling primitive.
+
+Ordinary garbling decoding is sufficient.  A protocol needing a private bit
+$y$ for an honest recipient can, at the application layer, let the recipient
+input a fresh pad $r$ and publicly output $y\oplus r$; version~1 makes no
+claim for later adaptive corruption of that pad holder.
+
+\subsection{Why complete exposure need not be fatal}
+
+Publishing $sk_i$ exposes the selected role's complete retained state,
+including its packet plaintext, local coins, and call record.  The exposed
+share belongs to a label reconstructed publicly anyway and gives no share of
+the disjoint sibling label.  In the sibling committee, at most $t$ members are
+corrupt on $\mathsf{Good}$, while every honest member remains silent;
+threshold privacy therefore protects the unselected label.
+
+The hidden permutation is necessary in this public-role model.  Without it,
+the speaking committee would reveal the input.  With it, the public structural
+branch has no fixed semantic meaning, and garbling privacy handles the
+remaining dependence on the input.
+
+The static-corruption restriction on named providers is used here.  A
+provider corrupt before setup controls its slot; an honest provider is never
+later asked to explain the encrypted unused token or its hidden semantic map.
+An adaptive extension will require an equivocal or non-committing treatment of
+the provider packet.
+
+This remains a blueprint rather than a theorem.  A proof must combine the
+two-stage finite-sampler property, multi-user encryption, token-tag security,
+verifiable-sharing privacy and robustness, garbling privacy, and the
+good-committee bound.  It must also account for retrospective decryption.
+One-role-per-key gives one canonical packet, not one ciphertext globally:
+adversarial evaluations of a copyable sampler may address further fork
+packets to the same $pk_i$.  Canonical-root isolation must ensure that every
+such plaintext is independent fork material containing no canonical inactive
+label; the readout part of property~$Z$ must simulate all openings.
+
+\paragraph{A gate-by-gate variant.}
+For intuition, garbling can be replaced by an expensive
+information-theoretic construction.  For every NAND gate and public
+structural branch corresponding to a pair of input tokens, a separate
+committee holds shares of the corresponding output token.  Only the committee
+whose branch matches the public inputs reveals its keys.  This makes the role
+of silence especially transparent, at the cost of a large setup and many
+registered computation parties.

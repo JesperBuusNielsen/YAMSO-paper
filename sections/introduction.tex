@@ -1,81 +1,132 @@
 \section{Introduction}
 \label{sec:introduction}
 
-The YOSO (You Only Speak Once) model was introduced as a way to obtain secure
-multiparty computation against a very strong adaptive adversary
-\cite{GentryEtAl2021YOSOFull}. A protocol role is assigned to an ephemeral
-party which prepares one message, deletes the secret state used to prepare
-it, and then sends the message. Only at this point does the role reveal
-itself. Corrupting the sender after publication is therefore too late: the
-message is already available and the secrets that produced it no longer
-exist. Later work has developed this anonymous, ephemeral-role paradigm in
-several directions; the erase-before-send discipline remains central.
+The YOSO model, for \emph{You Only Speak Once}, was proposed to study
+protocols built from parties that send one message and then have no
+further role~\cite{GentryEtAl2021YOSOFull}.  Its motivating protection
+against adaptive compromise is simple: prepare the message, erase all
+other state, and send.  If speaking reveals where the party can be
+attacked, corruption then arrives too late.  The message has already
+been sent, and the secrets used to compute it are gone.
 
-This paper starts from the deliberately unfriendly question: what if deletion
-is impossible? The restriction might be legal---a regime may require state
-to be retained for later inspection---or technological. For example, a
-party running in a cloud environment might fear that speaking identifies its
-machine and enables the cloud operator to inspect a residual snapshot despite
-an attempted deletion. We capture the extreme version of this concern by
-declaring that whenever an ordinary party speaks, its complete state leaks to
-the adversary.
+Do we really need the erasure?  Reliable deletion may be unavailable,
+for instance when a cloud provider retains snapshots or state must be
+kept for later inspection.  Suppose instead that every speaker can be
+corrupted immediately afterward, revealing its full retained state.
+At first the answer seems trivial: after everyone has spoken, the
+adversary knows everything.  But not everyone need to speak.  An initially
+honest party tasked only with computation can remain silent forever and
+keep its secrets.
+We therefore call the model \emph{You Atmost Speak Once} (YASO).
+The distinction is not that YOSO required every role to send a message;
+it is that, without erasure, deliberately leaving some roles silent
+becomes a resource for protecting secrets.
 
-The immediate answer seems to be ``obviously impossible.'' Eventually all
-parties relevant to the computation will speak and hence reveal everything.
-This conclusion overlooks one asymmetry. Speaking is optional. A machine
-may remain silent forever, in which case its secret state may stay hidden. We
-therefore place mutually exclusive pieces of state behind different
-public-key roles. The selected roles speak and are expended; the unselected
-roles never speak. In this sense, silence replaces erasure as the one-time
-resource.
+\paragraph{A theoretical model for discovering techniques.}
+Our purpose is to isolate this resource and ask what secure computation
+can achieve under a severe restriction.  The spirit is similar to that
+of the private simultaneous messages model, introduced by Feige, Kilian,
+and Naor and developed by Ishai and
+Kushilevitz~\cite{FeigeKilianNaor1994MinimalModel,IshaiKushilevitz1997PSM}:
+restricting how parties communicate can expose useful structure and
+suggest techniques beyond the restricted model itself.
+YASO is deliberately idealized.  We seek a simple model that permits
+feasibility results and leaves room for implementations, not a claim
+that its assumptions already describe a deployable system.
 
-We call the resulting setting \emph{YAMSO}: You At Most Speak Once. In a
-YAMSO execution, a synchronous ledger maintains a growing ordered list of
-public keys and messages. The public-key index determines the protocol role.
-For the preliminary model, each newly registered computation role is corrupted
-independently with probability $p$, whereas named application parties remain
-adaptively corruptible in the usual way. An honest role keeps its secret key
-inside a protected ledger interface until its one scheduled opportunity to
-speak.
-The intended later model will derive essentially the same random committee
-corruption from hidden assignment against an adversary controlling a bounded
-fraction of a much larger population. Once a computation role speaks, its key
-may become completely public; its message is already irrevocably recorded and
-the role is never used again.
+\paragraph{The ledger and corruption model.}
+A synchronous public ledger supplies a setup string and records a growing
+list of registered public keys and messages.  Everyone sees the same
+record, and an honest message, once posted, cannot be withdrawn or
+overtaken through subsequent corruption.  Each party may post at most
+once; no secret state or randomness is erased.
+We call input providers and output recipients \emph{application parties};
+the additional parties performing the computation on their behalf are
+\emph{computation parties}.
+Computation parties are independently corrupt at registration with
+probability $p<1/3$.  An initially honest computation party is protected
+from targeted corruption while silent, but loses that protection once
+it speaks, with no bound on subsequent corruptions.
 
-This first version has three modest goals. First, it gives a generic ledger
-API with synchronous public state, growing registration, random corruption,
-protected local evaluation, and explicit one-time turns. Second, it gives a
-finite construction sketch that illustrates why the model is not vacuous:
-each alternative garbled input label is shared behind a different committee,
-and only the committee selected by the input token reveals its keys. Third, it
-proposes a \emph{universal streamer}. This changes the universal-sampler
-interface by giving a fixed sampling description $d$ an append-only stream of
-public inputs. The outputs for successive input prefixes must themselves be
-prefixes. A fixed $d$ can thereby describe one indefinitely extended garbling
-whose output state labels are literally the input state labels of the next
-stretch, while later public keys arrive as public inputs. Constructing such a
-prefix-preserving universal sampler remains open.
+This static random choice is a simple abstraction of an adversary
+choosing compromised physical machines and a hidden random assignment
+of computation roles to those machines.  We do not construct such an
+assignment mechanism or claim security for arbitrary changes to the
+underlying compromised population.  Exposing a computation role's
+internal state helps the adversary without granting the ideal-world simulator
+additional application information.  This motivates giving the
+adversary all the initial random corruptions immediately.
 
-The presentation is intentionally preliminary. The construction in
-\cref{sec:basic-construction} is a feasibility blueprint rather than a stated
-theorem. Section~\ref{sec:model} fixes an operational experiment against
-which a first proof can be written. The detailed UC functionality is deferred
-until this API is stable, and universal sampling remains entirely a
-protocol-level mechanism.
+Input providers and output recipients are different.  Their application
+roles are often tied to particular users, making targeted compromise
+more plausible.  We retain chosen adaptive corruption: input providers
+become eligible after their irrevocable posting, while output recipients
+may be corrupted at any time, even if silent.  Crucially, the adversary
+may also choose \emph{not} to corrupt them.  Security must protect those
+parties' private data rather than rely on corruption eventually making
+it available.
 
-\paragraph{Relation to prior work.}
-Our starting point is YOSO \cite{GentryEtAl2021YOSOFull}. Anonymous
-blockchain committees tolerating a corruption rate around one quarter are
-known, but their secret handoff relies on erasures
-\cite{BenhamoudaEtAl2020BlockchainSecret}. Blockchain one-time programs
-already demonstrate conditional release of one garbled input on an immutable
-ledger \cite{GoyalGoyal2017Blockchains}. No-erasure hidden committees also
-appear in communication-local MPC, although there the selected committee runs
-an ordinary multi-round computation
-\cite{ChandranEtAl2024CommunicationLocalMPC}. Our basic sketch combines the
-one-time-role viewpoint with threshold-separated garbled labels. The
-universal-streamer direction connects to reactive garbling, succinct
-garbling, garbled Turing machines, and streaming functional encryption
-\cite{NielsenRanellucci2015ReactiveGarbling,LinPass2014SuccinctGarbling,%
-GoldwasserEtAl2013TuringMachines,GuanKorbSahai2022StreamingFE}.
+\paragraph{The task and construction.}
+We consider ongoing MPC with private state.  In each I/O round a public
+Boolean circuit maps that state and new private inputs to an updated
+state and outputs for designated recipients.  The honest parties are
+assumed to agree on the circuit; establishing agreement is not part of
+the task.  We use the UC framework to state this ideal computation and
+the ledger assumption.
+
+Our construction uses an independent garbling for each I/O round.
+A \emph{universal sampler} has public parameters $U$.  Given a
+description $d$ of a sampling procedure, anyone can deterministically
+compute the same sample $\Sample(U,d)$, as though $d$ had been run
+once with private random coins.  The coins are not separately revealed,
+and different descriptions behave like independent runs.
+We use the adaptive universal sampler of Hofheinz et
+al.~\cite{HofheinzEtAl2016UniversalSamplers} to generate a garbling
+together with encrypted packets of private information for its participants.
+Their registered public encryption keys are called \emph{delivery keys};
+the matching secret keys form part of the recipients' protected state.
+The description fixes these keys, the round circuit, and a fresh shared
+nonce.  Changing a delivery key yields an independent instance, not
+a different delivery of the same garbled labels.
+
+Within this sampling procedure, the two labels representing 0 and 1 on
+each input wire are robustly secret-shared among separate committees.
+Each share is encrypted under its member's delivery key.  These ciphertexts accompany the
+garbling in the public sample.  Members privately recover their shares,
+without any participating party having to serve as a garbler or dealer.
+
+For a private input wire, the input provider holds two secret
+\emph{activation tokens}: random strings whose one-way-function images
+are public.  Each image identifies a committee.  The sample privately
+delivers the randomly chosen mapping from input bits to these committees
+to the provider, encrypted under its delivery key.
+The provider posts the preimage corresponding to its bit.
+This token is not a garbled label: it authorizes release of one.
+Only the first valid preimage posted for that wire before its input
+deadline counts.  The selected committee's members publish their
+decryption keys, exposing their shares and reconstructing the label.
+The hidden mapping conceals the input bit from the public committee
+choice.  Honest members of the other committee remain silent, so
+exposing the speakers does not reveal the unused label.
+
+The central step for ongoing computation is to transfer \emph{encrypted
+state}, rather than link secret labels across rounds.  Each sampled
+circuit publishes a fresh state-reception public key and has the
+matching secret key embedded inside its garbling.  Prepare the successor
+before evaluating the current circuit; the current circuit can then
+encrypt its outgoing state under the successor's public key.
+The successor decrypts that ciphertext internally.
+Adaptive garbling~\cite{HemenwayEtAl2016AdaptiveGarbling} accommodates
+inputs fixed after the garbling is published, including this successor
+key and the incoming state ciphertext.  This breaks the dependence on
+shared boundary labels and lets us use universal sampling separately
+for each round.  Receiver non-committing encryption handles private
+deliveries whose recipients may later be exposed.
+
+The construction is a feasibility result: its universal sampler uses
+indistinguishability obfuscation in the random-oracle model, and we make
+no efficiency claim.  Individual rounds obey the sampler's size bounds,
+but setup need not fix the number of I/O rounds.  Our hope is that the
+discipline imposed by YASO will lead to more practical erasure-free
+constructions, as well as a better understanding of the power of
+choosing not to speak.

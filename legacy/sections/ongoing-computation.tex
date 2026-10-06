@@ -1,0 +1,438 @@
+\section{A Streaming Garbled-Circuit Factory}
+\label{sec:ongoing}
+
+The finite construction samples one bounded garbling.  For ongoing
+computation we now describe a more specific target than a general universal
+streamer: an \emph{oblivious garbled-circuit sampler} (OGCS) for one fixed
+public transition circuit
+\[
+  F(s_e,a_e)=(s_{e+1},y_e),
+\]
+where $s_e$ is carried state, $a_e$ is fresh input, and $y_e$ is public.  One
+application of $F$ is a \emph{stretch}.  The desired public object has a finite
+description and accepts arbitrarily long finite histories; in particular, its
+interface has no setup-time horizon.
+
+This section gives a candidate construction and a precise interface against
+which a proof can be written.  It is not yet a theorem.  The cited
+general-purpose ordinary-iO-based succinct TM-obfuscation results do not
+immediately provide the horizon-free interface, and the final online
+random-oracle programming step also remains open in this first version.
+
+\subsection{The prefix interface and its schedule}
+
+Setup publishes a finite parameter $U_{\mathsf{ogcs}}$ fixing $F$ and
+containing a fresh identifier $\mathsf{uid}$.  The public algorithm is
+evaluated on a complete finite input history:
+\[
+\begin{split}
+  \mathsf{OGCS}(U_{\mathsf{ogcs}};I,
+     &(M_0,\Sigma_0,\mathbf W_0),\ldots,\
+       (M_e,\Sigma_e,\mathbf W_e))
+       \longrightarrow D_e .
+  \label{eq:ogcs-interface}
+\end{split}
+\]
+The physical object is copyable and stateless; its hidden \emph{logical}
+state is reconstructed by replaying the input history.  On every accepting
+history its outputs are exactly prefix preserving,
+\[
+  D_{e-1}\preceq D_e,
+\]
+and repeated evaluation on the same history gives the same bit string.  A
+failed check enters an absorbing reject state and emits no further extension.
+The certificate is an acceptance witness, not stream input: two histories are
+called command-equivalent when they have the same $I$ and the same sequence of
+$(M_e,\mathbf W_e)$ values, even if they use different valid encodings of
+$\Sigma_e$.  The program normalizes away certificate bytes after verification.
+A different initialization or non-equivalent accepted command history is a
+fork and must not expose the hidden state of the canonical history.
+
+The initialization input $I$ produces a preparation object
+$\mathsf{Prep}_0$ but no garbled table or application output.  For a fixed
+public initial state $s_0$, it also publishes exactly one active initial-state
+label per state wire as part of $\mathsf{Prep}_0$.  The first certificate key
+$\mathsf{VK}_0$ is likewise a component of $\mathsf{Prep}_0$.  In general,
+$\mathsf{Prep}_e$ is public before the input
+slots of stretch $e$ open.  It contains
+\begin{itemize}
+  \item encrypted activation tokens and verifiable label shares, together
+    with public token-validity tags, for the fresh external-input wires of
+    stretch $e$; and
+  \item encrypted branch secrets and public verification material for a
+    fresh one-time certificate used to close that stretch.
+\end{itemize}
+The hidden plaintext material underlying $\mathsf{Prep}_e$ was fixed by the
+preceding accepted extension, or by $I$ when $e=0$.  For notation set
+$D_{-1}:=\mathsf{Prep}_0$.
+
+The order within a stretch is important.
+\begin{enumerate}
+  \item Input providers post activation tokens.  At a deterministic ledger
+    cut every slot is closed and the selected input committees reconstruct one
+    active external-input label per wire.  Missing or malformed slots use the
+    publicly detectable random-default rule of
+    \cref{sec:basic-construction}.
+  \item The registration window for stretch $e+1$ closes.  The canonical
+    ledger cut determines one ordered vector $\mathsf{PKBatch}_{e+1}$.  If the
+    required number of fresh keys is unavailable, the extension waits.
+  \item Everyone computes the finite vector $\mathbf W_e$ of random-oracle
+    values specified below.  This vector may be transported by any party and
+    need not be stored on the ledger; it has no authority of its own.
+  \item The certificate roles derive one canonical checkpoint $M_e$ from the
+    closed ledger view and reveal a certificate $\Sigma_e$ for it.
+  \item The accepted triple $(M_e,\Sigma_e,\mathbf W_e)$ appends
+    \[
+      \GC_e,\qquad \mathsf{Dec}_e,\qquad \mathsf{Prep}_{e+1}
+      \label{eq:stretch-output}
+    \]
+    to the cumulative OGCS output.
+  \item Everyone evaluates $\GC_e$.  This gives the public output $y_e$ and
+    one active label on every next-state wire.
+\end{enumerate}
+Publishing the garbled tables only after input closure lets the straight-line
+simulator obtain the public ideal output before it must fix those tables.  A
+variant publishing the complete garbling earlier would require a stronger
+online or adaptively simulatable garbling notion.
+
+\subsection{A one-time common-input certificate from silence}
+\label{sec:yamso-certificate}
+
+The ledger has no signing key.  Persistence instead comes from fresh YAMSO
+roles that certify a value they compute from their common ledger view.
+
+Let
+$\mathsf{Code}:\{0,1\}^{\kappa}\rightarrow\{0,1\}^{n}$ be a binary code of
+relative distance $\delta$, let $h_{\mathsf{sig}}$ be collision resistant,
+and let $f$ be one way.  For certificate epoch $e$, the hidden generator
+samples independently
+\[
+  A^e_{j,b}\sample\{0,1\}^{\lambda},\qquad
+  Y^e_{j,b}=f(\mathsf{sid},e,j,b,A^e_{j,b})
+\]
+for $(j,b)\in[n]\times\{0,1\}$.  The public verification material is
+$\mathsf{VK}_e=(Y^e_{j,b})_{j,b}$.  Each preimage $A^e_{j,b}$ is encrypted to
+a different fresh one-use computation role $P^e_{j,b}$.
+
+At the fixed certification cut, every honest role independently computes the
+same canonical message $M_e$ and the codeword
+\[
+  c_e=\mathsf{Code}(h_{\mathsf{sig}}(M_e)).
+\]
+The protected algorithm of role $P^e_{j,b}$ returns its secret key precisely
+when $c_e[j]=b$.  Observers check $\mathsf{KeyMatch}$, decrypt the canonical
+role packet, and treat the recovered $A^e_{j,b}$ as the opening.  A
+certificate contains valid openings in at least $\tau n$
+coordinates matching the claimed codeword.  Corrupt matching roles may
+withhold, which is why verification does not require every coordinate.
+
+Set $\rho=p$, the computation-role corruption probability of the model, and
+choose constant margins
+$\gamma_{\mathsf{live}},\gamma_{\mathsf{forge}}>0$ such that
+\[
+  1-\delta(1-\rho)+\gamma_{\mathsf{forge}}
+  <\tau<
+  1-\rho-\gamma_{\mathsf{live}}.
+  \label{eq:certificate-window}
+\]
+The right inequality gives liveness.  For a different codeword, every
+disagreeing coordinate needs the opposite opening, which is available without
+inverting $f$ only when that opposite role is corrupt; the left inequality
+prevents enough such openings.  The interval is possible when
+$\delta>\rho/(1-\rho)$, and hence permits any $\delta>1/3$ at
+$\rho=1/4$.  The canonical digest may depend on corrupt-role information
+visible before its cut.  We therefore require the good-assignment event to
+hold simultaneously for all possible canonical codewords and all ordered
+pairs of distinct codewords.  A conservative sufficient condition is
+\[
+  2^{\kappa}\exp(-\Omega(\gamma_{\mathsf{live}}^2 n))
+  +2^{2\kappa}\exp(-\Omega(
+       \gamma_{\mathsf{forge}}^2\delta n))
+\]
+to be negligible.  The exact constants and concentration proof are part of
+the certificate lemma; they are not claimed proved here.
+
+Speaking exposes the complete state of $P^e_{j,c_e[j]}$, but its branch secret
+has just become public.  The role containing $A^e_{j,1-c_e[j]}$ remains
+silent forever.  This is precisely where the at-most-once rule creates
+persistent authenticity without a persistent signing key.
+
+The distance-amplified Lamport idea is not new.  Katz and Vaikuntanathan use a
+high-distance encoding in a leakage-resilient one-time signature
+\cite{KatzVaikuntanathan2009LeakageSignatures}.  We reuse the distance
+intuition, while the distributed role assignment, partial liveness threshold,
+post-speech full exposure, and common-input property require a separate
+argument.  Kelsey, Lang, and Lucks study distributed stateful hash-based
+signing and the disjoint-honest-trustees one-time-key-reuse problem in the
+absence of broadcast \cite{KelseyLangLucks2025DistributedHBS}.
+
+The certificate is not a signing service for adversarially supplied messages.
+Honest roles derive $M_e$ from one already closed ledger cut.  The common
+ledger prevents them from being shown different inputs; the certificate makes
+that public truth usable by an obfuscated program that cannot read the ledger
+itself.
+
+\subsection{Keyless bootstrap and certified commands}
+
+The initialization string has the form
+\[
+  I=(\mathsf{Init},\mathsf{uid},\mathsf{sid},
+       \mathsf{initDigest},\mathsf{PKBatch}_0).
+\]
+The program requires the supplied $\mathsf{uid}$ to equal the one embedded in
+$U_{\mathsf{ogcs}}$.  The canonical $\mathsf{initDigest}$ commits to the
+initial ledger cut, public initial state, role allocation, and all relevant
+parameters.  The hidden program absorbs the complete encoding of $I$ before
+deriving its root and emitting $\mathsf{Prep}_0$, which includes
+$\mathsf{VK}_0$ and the active labels for the fixed $s_0$.  Thus initialization
+is not literally outputless: it emits branch-local encrypted preparation
+material and public labels for a public state, but no garbled table or
+application-derived output.
+
+Anyone may run the copyable program on $I'\neq I$.  Such a call may even use
+only adversarial public keys and hence create an adversarially controlled
+certificate chain.  This is harmless only because the different
+initialization is absorbed before any branch material is derived: every
+token, label, ciphertext, and later certificate key on that fork lies under a
+pseudorandomly independent logical root.  Later exposure of a canonical role
+key may decrypt a packet addressed to the same public key on such a fork, but
+the plaintext contains only fork material.  The common ledger selects the
+live root; no certifying-ledger secret key is needed.
+
+For a public partition of microstep indices into finite intervals $J_e$, let
+\[
+  W_i=H(\mathsf{ogcs},\mathsf{uid},\mathsf{sid},i),
+  \qquad i\in J_e,
+\]
+write $\mathbf W_e=(W_i)_{i\in J_e}$, and set
+$\omega_e=\mathsf{Hash}(J_e,\mathbf W_e)$.  The obfuscated program has no
+random-oracle access, so these values are computed outside it.  Honest
+certificate roles compute the same vector themselves.  The vector supplied
+with the OGCS call is nonauthoritative: the program checks its digest against
+the certified $\omega_e$.
+
+Define the full pre-oracle descriptor and its digest by
+\[
+  Q_e=(\mathsf{uid},\mathsf{sid},e,
+    \mathsf{Hash}(D_{e-1}),\mathsf{Hash}(\mathsf{Prep}_e),
+    \mathsf{inputCheckpoint}_e,\mathsf{PKBatch}_{e+1}),
+  \qquad
+  \chi_e=\mathsf{Hash}(Q_e),
+\]
+and let the canonical certificate message be
+\[
+  M_e=(Q_e,J_e,\omega_e).
+  \label{eq:checkpoint}
+\]
+The next-key registration cutoff occurs before this message is certified.
+Exact closed-ledger positions, role allocation, and all domain separators are
+part of $Q_e$'s canonical encoding.  Thus the program receives, checks, and
+can use the actual input checkpoint and recipient-key batch rather than only
+their hash image.  It checks the predecessor, epoch, syntax, oracle-vector
+digest, and certificate under the verification material in its current
+logical frontier.  Any failure enters the absorbing reject state.
+
+The next verification key is an output inside $\mathsf{Prep}_{e+1}$ and hence
+is authenticated by the current accepted extension.  It is not included as an
+independent input to the same command, avoiding a circularity.  Different
+valid subsets or orderings of openings for the same $M_e$ induce the same
+extension: all derivations use $M_e$, never the certificate bytes.
+
+\subsection{The hidden logical stream}
+
+Let $\mathsf{InMat}_e$ contain the external-input label pairs, activation
+tokens, semantic permutations, shares, and role-packet plaintexts underlying
+$\mathsf{Prep}_e$, and let $\mathsf{CertMat}_e$ contain its certificate
+preimages and packet state.  At the beginning of stretch $e$, the logical
+frontier is
+\[
+  \Phi_e=\left(
+    X_e,
+    \mathsf{StatePairs}_e,
+    \mathsf{InMat}_e,
+    \mathsf{CertMat}_e,
+    \mathsf{VK}_e
+  \right),
+  \label{eq:logical-frontier}
+\]
+After the public cuts are fixed, let $\overline\Phi_e$ be the frontier
+$\Phi_e$ with its seed coordinate replaced by
+\[
+  \overline X_e=
+    \mathsf{KDF}(X_e,(\mathsf{publicCut},\chi_e)).
+\]
+Write $\Phi_{e,i}$ for the corresponding intermediate frontier after
+microstep $i$, with $\Phi_{e,\ell_e-1}=\overline\Phi_e$ and
+$\Phi_{e,r_e}=\Phi_{e+1}$ on a normally generated stretch.  Here
+$\mathsf{StatePairs}_e=
+ \{(K^{\mathsf{st}}_{e,w,0},K^{\mathsf{st}}_{e,w,1})\}_w$.
+The active member of every state pair is public from evaluation of the
+preceding stretch.  For $e=0$, $\mathsf{Prep}_0$ publishes the member encoding
+the fixed public initial state; the sibling remains hidden.
+
+Enumerate the finite objects generated for the next suffix by the consecutive
+indices $J_e=[\ell_e,r_e]$.  Set
+\[
+  X_{e,\ell_e-1}=\overline X_e,
+  \qquad
+  X_{e,i}=\mathsf{KDF}(X_{e,i-1},W_i)
+  \quad(i\in J_e),
+  \qquad
+  X_{e+1}=X_{e,r_e}.
+  \label{eq:kdf-chain}
+\]
+These equations specify the normal branch.  At a programmed microstep, a
+valid capsule replaces both the emitted fragment and the complete successor
+microfrontier $\Phi_{e,i}$; subsequent generation continues from that
+replacement frontier.
+Domain-separated puncturable-PRF evaluations from these states derive the
+output-state label pairs and garbling coins for $\GC_e$, followed by
+$\mathsf{InMat}_{e+1}$, $\mathsf{CertMat}_{e+1}$, verification material,
+verifiable shares, and role-state encryption coins for
+$\mathsf{Prep}_{e+1}$.  The current $\mathsf{InMat}_e$ is not regenerated:
+it is the material already committed before the input window.  The complete
+pre-oracle cut is therefore absorbed before the first microstep.
+
+Readout for the newly prepared input roles is bound to the exact ordered
+recipient-key vector.  For example, its coins have the form
+\[
+ r^{\mathsf{read}}_{e+1,w,s,j}
+ =\mathsf{PPRF}_{K_{\mathsf{read}}}
+   (X_{e,i},\chi_e,e+1,w,s,j,
+    pk_{e+1,w,s,j}).
+  \label{eq:pk-bound-readout}
+\]
+Consequently, a canonical packet is tied to its intended recipient key.
+Packets produced by reset or fake-initialization calls under the same public
+key are not claimed never to decrypt; rather, prefix isolation must ensure
+that their plaintexts contain only independently rooted fork material.
+
+The garbling $\GC_e$ uses $\mathsf{StatePairs}_e$ and the external-input pairs
+in $\mathsf{InMat}_e$.  Its output-state labels are literally the pairs in
+$\mathsf{StatePairs}_{e+1}$ stored in $\Phi_{e+1}$.  Evaluation makes only the
+active member of each pair public.  No machine links an old label to a new
+one, and no committee is needed for carried state.
+
+Changing $I$, an accepted certified checkpoint, or any earlier $W_i$ changes
+the logical derivation for the suffix after that point.  On the live protocol
+path, the certificate prevents such a change after a shared state label
+exists.  Calls on another initialization root remain independently evaluable
+but receive no honest input material belonging to the live root.  In a
+programmed proof hybrid, a sequence of transition capsules may prescribe each
+affected public fragment together with its matching successor microfrontier;
+no capsule may program only a table while leaving an inconsistent hidden
+successor.
+
+\subsection{Candidate realization by delayed programming}
+
+For a declared input-length bound $L$, a finite version of the public object
+may be based on succinct iO for bounded-input Turing machines.  Cryptographic
+iterators and succinct TM-iO provide relevant techniques for compactly
+representing long bounded computations
+\cite{KoppulaLewkoWaters2014IOTM,AnanthJainSahai2017TMIO}.  They do not by
+themselves instantiate the horizon-free interface above, whose replay input
+has unbounded length; that requires an additional primitive or a
+reformulation of the interface.  We leave this as a separate realization gap
+rather than hide $L$ in the environment's running-time polynomial.
+
+For a bounded prefix, we propose to adapt the delayed-backdoor programming of
+Hofheinz et al.'s universal sampler
+\cite{HofheinzEtAl2014UniversalSamplers}.  Its hidden-trigger paradigm, and
+the later selectively secure pseudorandom puncturable deterministic encryption
+(PPDE) of Koppula, Poelstra, and Waters
+\cite{KoppulaPoelstraWaters2017FastSamplers}, let an apparently random string
+carry a programmed bounded object.  In our proposed adaptation, a random
+$W_i$ selects the ordinary PRF-generated transition.  In a proof, the oracle
+answer at one punctured point is changed to encode a prescribed transition
+capsule.
+
+More explicitly, let ($\mathsf{BEnc},\mathsf{BDec}$) denote the desired
+puncturable carrier.  Its ciphertexts are pseudorandom, while a uniform string
+decrypts to $\bot$ except with negligible probability.  The same hidden
+microstep program is used in both the real execution and the proof:
+\[
+  C_i\leftarrow\mathsf{BDec}_{K_{\mathsf{bd}}}(W_i),
+  \qquad
+  \mathsf{Step}_i=
+  \begin{cases}
+    C_i,&\text{if }\mathsf{ValidCap}(C_i,\Phi_{e,i-1},\chi_e)=1,\\
+    \mathsf{NormalGen}(X_{e,i-1},W_i,\chi_e,i),&\text{otherwise.}
+  \end{cases}
+  \label{eq:normal-programmed-step}
+\]
+On honest random-oracle answers, the normal branch is taken except with
+negligible probability.  In a selective bounded-prefix hybrid in which
+$C_i$ is fixed before carrier-key setup, the intended proof first replaces
+the embedded carrier key by a key punctured at $C_i$ and hardcodes the
+prescribed behavior at the exceptional ciphertext.  It separately punctures
+the normal-generation keys at the same logical point.  Koppula--Poelstra--
+Waters PPDE pseudorandomness can then hide the swap from uniform $W_i$ to
+$\mathsf{BEnc}_{K_{\mathsf{bd}}}(C_i)$.  Choosing $C_i$ online after
+carrier-key setup requires an adaptive carrier argument and remains open.
+
+The programmed branch bypasses the normal KDF and readout derivations for
+that microstep and takes the complete successor microfrontier from its
+capsule.  Thus, in the selective experiment, the capsules can be sampled from
+$\chi_e$, the closed recipient keys, and the prescribed output before $W_i$
+or $M_e$ is fixed.  This is a specification of the carrier property we need,
+not a claim that the cited PPDE theorem already supplies the complete stateful
+interface.
+
+For our use each capsule must contain the \emph{complete} affected logical
+microtransition: its public garbled fragment and every hidden successor value
+on which later fragments depend.  Programming only one public gate while
+leaving an inconsistent successor $X_{e,i}$ would not preserve the stream.
+The intended hybrid punctures the KDF/PRF path at one canonical microstep,
+installs this complete capsule, leaves every sibling subtree pseudorandom,
+and then repeats from left to right.
+
+Two further proof obligations remain visible.  First, computational
+unforgeability of the YAMSO certificate does not make two obfuscated programs
+functionally identical on every mathematical input.  In their binding setup,
+Fernando et al.'s somewhere statistically unforgeable signatures make
+alternate valid signatures at a selected round and message statistically
+nonexistent, except with negligible probability over setup.  They use this
+property to establish functional equivalence of adjacent obfuscated gate
+programs before applying ordinary iO \cite{FernandoEtAl2023SSU}.  This is a
+candidate technique here, not an instantiation we may assume for free.
+
+Second, the points
+$H(\mathsf{ogcs},\mathsf{uid},\mathsf{sid},i)$ are predictable after
+$U_{\mathsf{ogcs}}$ is public.  A selective-capsule experiment can fix the
+target $\mathsf{sid}$, finite index set $\bigcup_eJ_e$, canonical schedule,
+and complete capsule sequence before publication, program all corresponding
+points, and then rely on the fresh $\mathsf{uid}$ to rule out an earlier
+query.  This is structural evidence for the bounded carrier hybrid, not a
+real--ideal simulation: in the protocol the honest inputs and outputs are not
+known before setup.  It also does not give one online simulator for the
+horizon-free execution.
+
+The intended next pass prepares a fresh unpredictable nonce one stretch
+ahead.  In that proof the simulator first waits for the input and next-key
+cuts, receives $y_e$ privately, and uses $Z.\mathsf{Complete}$ and
+$Z.\mathsf{Prepare}$ to form the microstep capsules from $\chi_e$, the
+recipient keys, and $y_e$.  It then programs the nonce-dependent oracle
+points, reveals and recomputes $\mathbf W_e$, forms $M_e$, and only then
+releases the honest openings that take $\Sigma_e$ across its acceptance
+threshold.  Thus no one can invoke the accepted canonical extension before
+all of its capsules are installed.
+We do not repair either issue by giving the environment an explicit time bound.
+
+\subsection{What the candidate establishes and what it does not}
+
+The construction isolates a plausible path to indefinitely extensible
+garbling.  Adjacent stretches share boundary labels by construction; new
+public keys enter only through a certified cutoff; external oracle values are
+bound by a certified digest; and the only online secret holders that speak
+reveal branch-local state already made public.  A fake initialization can
+generate a whole fake computation, but it forks before any live input or
+state material.
+
+The missing statements are now explicit: the one-time certificate lemma, a
+two-stage finite garbling/readout simulation with prescribed boundary labels
+and full speaker exposure, a horizon-free public-program realization, the
+stateful delayed-programming lemma, exact iO-compatible authentication, and
+late online oracle programming.  These are organized as whole-process
+replacement lemmas in \cref{sec:proof-outline}.  A general universal-streamer
+abstraction can be revisited after this fixed-function OGCS is understood;
+the present construction does not claim one.

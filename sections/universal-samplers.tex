@@ -1,0 +1,183 @@
+\subsection{Adaptive Universal Samplers}
+\label{sec:universal-samplers}
+
+A universal sampler turns one public setup into a source of publicly
+reproducible samples from many distributions.  To specify a distribution,
+we give a circuit $d$ that maps random bits to a sample.  After setup has
+produced public parameters $U$, anyone can compute
+$\Sample(U,d)$.  Everyone using the same description obtains the
+same sample, but the random tape is not exposed separately from the
+sample.  Distinct descriptions should behave as if they had been evaluated
+on independent random tapes.
+
+We use the adaptive definition of Hofheinz et al.\
+\cite[full version, Section~3.2, Definition~4]{HofheinzEtAl2016UniversalSamplers}.
+Here, adaptive means that descriptions may be chosen after seeing $U$ and
+the results of earlier computations.
+
+\subsubsection{Syntax}
+\label{sec:universal-sampler-syntax}
+
+Let $\lambda$ be the security parameter; efficient algorithms run in
+probabilistic polynomial time.  Fix polynomial bounds
+$\ell=\ell(\lambda)$, $m=m(\lambda)$, and $k=k(\lambda)$ for the
+description length, number of random bits, and sample length, respectively.
+A description $d\in\bits^\ell$ specifies a deterministic circuit
+\[
+  d:\bits^m\longrightarrow\bits^k.
+\]
+Shorter descriptions and outputs are padded, and circuits using fewer
+than $m$ random bits ignore the surplus.  We fix a total decoding
+convention: any invalid $\ell$-bit description denotes the circuit that
+always outputs $0^k$.  The exact description string identifies the
+distribution request; two different descriptions may compute the same
+function without identifying the same request.
+
+A universal sampler consists of two efficient public oracle algorithms:
+\begin{description}
+  \item[$\Setup^{H}(1^\lambda)\to U$.]
+    The randomized setup algorithm produces the public sampler parameters.
+  \item[$\Sample^{H}(U,d)\to p_d$.]
+    The sampling algorithm computes a $k$-bit sample.  For fixed $U$, $d$,
+    and oracle $H$, this computation is deterministic.
+\end{description}
+The bounds $(\ell,m,k)$ are fixed for the scheme and suppressed from its
+algorithm inputs.  The superscript $H$ denotes access to a public random
+oracle, with domain $\bits^*$ and a scheme-specified polynomial output
+length.  It is available to setup, public sampling, and the adversary.
+The distribution circuit $d$ itself has no oracle access.
+
+\subsubsection{The ideal source of samples}
+\label{sec:ideal-samples}
+
+The ideal source keeps a private table of random tapes, initially empty.
+Its command is
+\[
+  \IdealSample(d):\qquad
+  \begin{cases}
+    \text{if $r_d$ is undefined, choose $r_d\sample\bits^m$ independently;}\\
+    \text{return $d(r_d)$.}
+  \end{cases}
+\]
+Only the sample is returned, with no separate disclosure of $r_d$.
+Thus a repeated description
+returns the same value, whereas a new description receives a fresh random
+tape.  Equivalently, $\IdealSample(d)=d(F(d))$ for a private truly
+random function $F:\bits^\ell\to\bits^m$.  This $F$ is not the public
+random oracle $H$.
+
+The security definition must reconcile this ideal source with public
+evaluation: even in the ideal experiment, the adversary receives $U$ and
+can run $\Sample$ itself.  It is therefore not enough to replace
+an answer at a sampling interface.  A simulator must arrange that actual
+public evaluations agree with the ideal samples.
+
+
+\subsubsection{Adversary commands and admissibility}
+\label{sec:sampler-commands}
+
+The adversary $\mathcal A$ is an efficient interactive algorithm given
+$(1^\lambda,U)$, with the following commands:
+\begin{description}
+  \item[$\QueryRO(x)$.]
+    Request the public-oracle value at $x\in\bits^*$.
+  \item[$\Declare(d)$.]
+    Declare a description $d\in\bits^\ell$.  There is no reply.
+    The adversary then runs $p\gets\Sample^{\QueryRO}(U,d)$ and
+    records $\langle\DeclareOutput,d,p\rangle$ on an auxiliary tape.
+  \item[$\Finish(b)$.]
+    Terminate with $b\in\bits$.  Termination without an output bit is
+    interpreted as $\Finish(0)$.
+\end{description}
+Records use a fixed unambiguous encoding.  The adversary is
+\emph{admissible} if it follows this sampling procedure: every record
+$\langle\DeclareOutput,d,p\rangle$ contains the result of its declared
+evaluation, so $p=\Sample^{\QueryRO}(U,d)$.  Its other local computations
+and oracle queries are unrestricted.
+
+\subsubsection{Real and ideal experiments}
+\label{sec:sampler-experiments}
+
+\paragraph{Real experiment $\Real_{\mathcal A}(1^\lambda)$.}
+\begin{enumerate}
+  \item Initialize a random oracle $H$: its first query at any string
+    receives an independent uniform answer of the prescribed length;
+    repeated queries receive the same answer.
+  \item Compute $U\sample\Setup^{H}(1^\lambda)$ and give
+    $(1^\lambda,U)$ to $\mathcal A$.  Retain all oracle answers made
+    during setup.
+  \item Run $\mathcal A$, answering every $\QueryRO(x)$ with $H(x)$.
+    A $\Declare(d)$ command receives no reply.
+  \item On $\Finish(b)$, output $b$.
+\end{enumerate}
+
+\paragraph{Ideal experiment $\Ideal_{\mathcal A,\mathcal S}
+(1^\lambda)$.}
+The simulator consists of two efficient algorithms
+$\mathcal S=(\SimSetup,\SimRO)$.  Both have access to the
+same private $\IdealSample$ oracle.  The algorithm
+$\SimRO$ is stateful; its state persists across requests.
+\begin{enumerate}
+  \item Initialize the private random-tape table for
+    $\IdealSample$.
+  \item Compute
+    $(U,\SimState)\sample
+    \SimSetup^{\IdealSample}(1^\lambda)$.
+    Give $(1^\lambda,U)$ to $\mathcal A$ and retain $\SimState$ as
+    the simulator's private state.
+  \item Run $\mathcal A$.  On each $\QueryRO(x)$, compute
+    $(a,\SimState)\sample
+    \SimRO^{\IdealSample}(\SimState,x)$ and return $a$.
+  \item After each $\Declare(d)$, monitor the auxiliary tape for the
+    resulting $\langle\DeclareOutput,d,p\rangle$ record.  Obtain
+    $p^*\gets\IdealSample(d)$.  If $p\ne p^*$, terminate with
+    the distinguished result $\Inconsistent$.
+  \item On $\Finish(b)$, output $b$.
+\end{enumerate}
+The adversary has no direct access to $\IdealSample$.  The
+simulator receives only the $\QueryRO$ requests, not the sample
+declarations, recorded results, or consistency checker's oracle calls.
+There is no separately sampled public oracle in this experiment:
+$\SimRO$ supplies its answers.
+
+\begin{definition}[Adaptive universal sampling]
+\label{def:adaptive-universal-sampler}
+The pair $(\Setup,\Sample)$ is an adaptively secure
+universal sampler if there exist efficient simulator algorithms
+\[
+  \mathcal S=(\SimSetup,\SimRO)
+\]
+such that, for every
+efficient admissible adversary $\mathcal A$, there is a negligible
+function $\varepsilon_{\mathcal A}$ satisfying
+\begin{align*}
+  \left|\Pr[\Real_{\mathcal A}(1^\lambda)=1]
+    -\Pr[\Ideal_{\mathcal A,\mathcal S}(1^\lambda)=1]\right|
+    &\leq\varepsilon_{\mathcal A}(\lambda),\\
+  \Pr[\Ideal_{\mathcal A,\mathcal S}(1^\lambda)
+      =\Inconsistent]
+    &\leq\varepsilon_{\mathcal A}(\lambda).
+\end{align*}
+\end{definition}
+
+The first condition hides the simulation.  The second ensures that an
+honest public evaluation actually produces the corresponding ideal sample;
+it is the source definition's \emph{honest-sample violation} condition.
+The result $\Inconsistent$ is reserved for this failure, not for
+an adversary choosing to stop its own execution.
+
+There is no setup-time bound on the number of commands.  Each efficient
+adversary makes only polynomially many of them, but the scheme is not
+initialized with that polynomial.  The fixed bounds $(\ell,m,k)$ apply to
+individual descriptions and samples, not to their total number.
+
+\subsubsection{Existence}
+
+\begin{theorem}[Hofheinz et al.]
+\label{thm:adaptive-universal-sampler}
+If indistinguishability obfuscation and one-way functions exist, then
+adaptively secure universal samplers exist in the random-oracle model.
+\end{theorem}
+This is \cite[full version, Theorem~3]{HofheinzEtAl2016UniversalSamplers}.
+We invoke this theorem as a black box and do not reproduce its
+construction or proof.

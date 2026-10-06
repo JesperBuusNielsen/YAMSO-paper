@@ -1,5 +1,73 @@
 % Shared notation belongs here once it has been fixed and reviewed.
 \newcommand{\bits}{\{0,1\}}
-\newcommand{\negl}{\mathop{\mathrm{negl}}}
-\newcommand{\poly}{\mathop{\mathrm{poly}}}
+\newcommand{\negl}{\mathop{\mathsf{negl}}}
+\newcommand{\poly}{\mathop{\mathsf{poly}}}
 \newcommand{\GC}{\mathsf{GC}}
+\newcommand{\pk}{\mathsf{pk}}
+\newcommand{\sk}{\mathsf{sk}}
+\newcommand{\sample}{\mathrel{\leftarrow}}
+
+% Algorithm names, game commands, and record tags.
+\newcommand{\Setup}{\mathsf{Setup}}
+\newcommand{\Sample}{\mathsf{Sample}}
+\newcommand{\IdealSample}{\mathsf{IdealSample}}
+\newcommand{\QueryRO}{\mathsf{QueryRO}}
+\newcommand{\Declare}{\mathsf{Declare}}
+\newcommand{\DeclareOutput}{\mathsf{DeclareOutput}}
+\newcommand{\Finish}{\mathsf{Finish}}
+\newcommand{\SimSetup}{\mathsf{SimSetup}}
+\newcommand{\SimRO}{\mathsf{SimRO}}
+\newcommand{\SimSample}{\mathsf{SimSample}}
+\newcommand{\Real}{\mathsf{Real}}
+\newcommand{\Ideal}{\mathsf{Ideal}}
+\newcommand{\Inconsistent}{\mathsf{inconsistent}}
+\newcommand{\SimState}{\mathsf{st}}
+
+\newcommand{\Garble}{\mathsf{Garble}}
+\newcommand{\Encode}{\mathsf{Encode}}
+\newcommand{\Eval}{\mathsf{Eval}}
+\newcommand{\Topo}{\mathsf{Topo}}
+\newcommand{\GarbleAux}{\mathsf{aux}}
+\newcommand{\SimGarble}{\mathsf{SimGarble}}
+\newcommand{\SimEncode}{\mathsf{SimEncode}}
+\newcommand{\GarbleReal}{\mathsf{GarbleReal}}
+\newcommand{\GarbleIdeal}{\mathsf{GarbleIdeal}}
+\newcommand{\GarbleCircuit}{\mathsf{GarbleCircuit}}
+\newcommand{\EncodeInput}{\mathsf{EncodeInput}}
+\newcommand{\PrvOne}{\mathsf{prv1}}
+
+\newcommand{\KeyGen}{\mathsf{KeyGen}}
+\newcommand{\Enc}{\mathsf{Enc}}
+\newcommand{\Dec}{\mathsf{Dec}}
+\newcommand{\SimNCE}{\mathsf{SimNCE}}
+\newcommand{\ExplainNCE}{\mathsf{ExplainNCE}}
+\newcommand{\GetPublicKey}{\mathsf{GetPublicKey}}
+\newcommand{\EncryptMessage}{\mathsf{EncryptMessage}}
+\newcommand{\CorruptReceiver}{\mathsf{CorruptReceiver}}
+\newcommand{\NCEReal}{\mathsf{NCEReal}}
+\newcommand{\NCEIdeal}{\mathsf{NCEIdeal}}
+
+\newcommand{\Share}{\mathsf{Share}}
+\newcommand{\Reconstruct}{\mathsf{Reconstruct}}
+\newcommand{\ShareSecret}{\mathsf{ShareSecret}}
+\newcommand{\ReadShare}{\mathsf{ReadShare}}
+\newcommand{\ShareGame}{\mathsf{ShareGame}}
+\newcommand{\CompleteShares}{\mathsf{CompleteShares}}
+
+\newcommand{\CPAGame}{\mathsf{CPAGame}}
+\newcommand{\Challenge}{\mathsf{Challenge}}
+
+% Ledger notation.
+\newcommand{\FLedger}{\mathcal F_{\mathsf{Ledger}}}
+\newcommand{\crs}{\mathsf{crs}}
+\newcommand{\WhosTurn}{\mathsf{WhosTurn}}
+\newcommand{\NoMsg}{\mathsf{NoMsg}}
+
+% Application interface.
+\newcommand{\FMPC}{\mathcal F_{\mathsf{MPC}}}
+\newcommand{\pid}{\mathsf{pid}}
+\newcommand{\ncek}{\mathsf{ncek}}
+
+% State-transfer keys, distinct from registered delivery keys.
+\newcommand{\statepk}{\mathsf{pk}^{\mathsf{state}}}
+\newcommand{\statesk}{\mathsf{sk}^{\mathsf{state}}}

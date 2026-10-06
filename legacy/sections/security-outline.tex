@@ -1,0 +1,336 @@
+\section{A Modular Proof Outline}
+\label{sec:proof-outline}
+
+The final security statement should be phrased at the application interface.
+We do not, however, decompose the intermediate argument into a collection of
+UC ideal functionalities for garbling, OGCS, certificate preparation, and
+committee readout.  A naive decomposition whose interfaces output the secret
+keys and label pairs needed by the next hybrid would also expose those values
+to the UC environment.  This is the proof-engineering problem encountered
+when secret key material is passed through intermediate hybrids in the
+asynchronous YOSO proof \cite{DamgardEtAl2025AsyncYOSO}.
+
+We instead compare two complete interactive processes.  They include the
+environment, adversary, random oracle, ledger, all evaluations of the copyable
+public OGCS object, every protocol message, and the complete retained state of
+every role after it speaks.  The replacement lemmas below are ordinary
+indistinguishability statements about these whole executions.  A resulting
+whole-process argument is intended to be used inside a separately constructed
+top-level UC proof; such a wrapper is not automatic and is not claimed here.
+
+\subsection{Scope of the first statement}
+
+Before setup, the adversary chooses the corrupt set
+$\mathcal C_{\mathsf{in}}$ of named input providers.  This set remains fixed.
+Each computation registration $i$ is independently marked corrupt by
+$c_i\sample\mathsf{Bernoulli}(p)$, and an honest computation role cannot later
+be corrupted.  Nevertheless, immediately after an honest role speaks, its
+complete role state is given to the adversary.  Every computation public key
+has one canonical role, all outputs are public, and a closed missing or
+malformed input has the random-default semantics of
+\cref{sec:basic-construction}.
+
+The desired OGCS construction accepts every finite history without a
+setup-declared horizon.  The proof template below therefore assumes a
+horizon-free online property~$Y$.  The bounded-input TM-iO and selective
+oracle-programming evidence in \cref{sec:ongoing} establishes neither that
+property nor a hidden running-time bound; both limitations remain explicit.
+
+\subsection{The real and ideal processes}
+
+The process
+$\mathsf{Real}_{\Pi,\mathcal A,\mathcal Z}(1^\lambda)$ runs the protocol of
+\cref{sec:model,sec:basic-construction,sec:ongoing}.  In addition to the
+ordinary ledger view, $\mathcal A$ and $\mathcal Z$ receive
+\begin{itemize}
+  \item the complete initial state of every corrupt registered role;
+  \item every public derived garbling, ciphertext, share opening, validity
+    tag, and certificate;
+  \item the result of every adversarial reset or fork evaluation of
+    $U_{\mathsf{ogcs}}$; and
+  \item the complete secret key, canonical packet plaintext, coins, and
+    retained call record of every honest computation role immediately after
+    its message is irrevocable.
+\end{itemize}
+The same disclosed key may retrospectively decrypt packets addressed to it by
+off-path evaluations of the copyable object; those plaintexts are also part
+of the real view.  Silent honest roles expose nothing and are never reused.
+
+The process
+$\mathsf{Ideal}_{F,\mathcal S,\mathcal Z}(1^\lambda)$ evaluates the intended
+stateful transition directly.  Honest named providers give their inputs to
+the ideal computation; in the first statement every honest provider supplies
+exactly one bit before its slot is scheduled.  For a corrupt provider,
+$\mathcal S$ supplies the semantic bit extracted from its uniquely closed
+protocol slot, including a bit of the simulator's choice for a missing or
+malformed slot.  It computes
+\[
+  (s_{e+1},y_e)=F(s_e,a_e)
+\]
+and, once both the input and next-key cuts are fixed, sends
+$(\mathsf{OutputReady},e,y_e)$ privately to $\mathcal S$.  The simulator may
+use this value internally while it prepares the certified extension, but does
+not deliver it to $\mathcal A$ or $\mathcal Z$.  The ideal process releases
+$y_e$ publicly only at the corresponding simulated evaluation event.  Thus
+the environment sees the output at the same point as in the real execution,
+while $Z.\mathsf{Complete}$ learns it causally.  The ideal process contains no
+computation PIDs, committees, labels, garbled circuits, random corruption
+coins, or OGCS state.  In the simulation, a default is coupled to
+$\pi_w^{-1}(0)$; since $\pi_w$ is uniform, this has exactly the ideal default
+distribution even though the ideal corrupt-party interface lets the simulator
+supply the bit.
+
+\subsection{Three replacement lemmas}
+
+The proof is organized around three properties, denoted $X$, $Y$, and $Z$.
+They are lemmas about the surrounding execution, not callable ideal
+functionalities.
+
+\paragraph{$X$: canonical certification from one-use exposure.}
+Condition on the good certificate-role event.  For every epoch, the canonical
+checkpoint obtains enough valid openings, while no PPT context obtains an
+accepted certificate for a different checkpoint under the same verification
+material.  This remains true after every role that certified the canonical
+checkpoint exposes its complete state.
+
+Property~$X$ is a non-equivocation-and-liveness statement.  Because the
+canonical digest may depend on corrupt-role information visible before its
+cut, the good-assignment event is required to hold uniformly for every
+possible canonical codeword and every ordered pair of distinct codewords.
+The simulation of encrypted certificate packets, role keys, coins, and
+exposed call records is
+assigned to $Z.\mathsf{Prepare}$ below.  The authentication proof separates a
+collision in $h_{\mathsf{sig}}$, inversion of an unopened one-way image, and
+an unusually favourable random corrupt-role pattern.  With constant margins
+as in \eqref{eq:certificate-window}, a conservative rate-versus-tail
+condition is
+\[
+  2^{\kappa}\exp(-\Omega(\gamma_{\mathsf{live}}^2 n))
+  +2^{2\kappa}\exp(-\Omega(
+      \gamma_{\mathsf{forge}}^2\delta n))=\negl(\lambda).
+\]
+Sequential composition then pays a union bound over the polynomial number of
+certificate epochs appearing in the inspected execution.
+
+Status: this lemma is \emph{conjectured}.  Its high-distance Lamport core is
+source-backed by \cite{KatzVaikuntanathan2009LeakageSignatures}; the partial
+opening threshold, common-input restriction, random role assignment, and full
+post-speech exposure experiment still need a complete proof.
+
+\paragraph{$Y$: programmable prefix-preserving OGCS.}
+A horizon-free online simulator first produces one public OGCS parameter,
+before the future initialization, certified descriptors, or outputs are
+known.  When the canonical initialization $I$ arrives, it runs the normal
+initialization derivation honestly, publishes $D_{-1}=\mathsf{Prep}_0$, and
+retains the resulting hidden frontier $\Phi_0$.  This step requires no
+programmed capsule because $s_0$ is public and there is no application-derived
+output.  Once the
+pre-oracle descriptor $Q_e$, the closed $\mathsf{PKBatch}_{e+1}$, and the
+target microstep capsules for stretch $e$ are available, but before
+$\mathbf W_e$ is exposed, it supports the simulation-side operation
+\[
+  \mathsf{Program}(Q_e,\mathsf{Capsules}_e)
+      \longrightarrow\mathbf W_e.
+\]
+The canonical message
+$M_e=(Q_e,J_e,\mathsf{Hash}(J_e,\mathbf W_e))$ is formed and certified only
+afterwards.  The resulting object must satisfy
+\begin{enumerate}
+  \item every canonical call returns the prescribed output prefix;
+  \item every accepting history is bit-for-bit prefix consistent, and
+    repeated calls to one history agree exactly;
+  \item each prescribed capsule contains the complete hidden successor
+    microfrontier as well as its public output fragment;
+  \item after the first non-equivalent divergence in $I$, $Q_e$, $J_e$, or
+    $\mathbf W_e$, arbitrary fork and reset calls reject or evolve under
+    pseudorandomly independent roots; valid certificate-witness variants for
+    the same command are normalized away; and
+  \item later disclosure of a canonical secret key may decrypt off-path
+    packets addressed to that key, but all such plaintexts are simulatable
+    independent-fork material containing no canonical inactive label or
+    master seed.
+\end{enumerate}
+The surrounding context may interleave public OGCS evaluations with all
+ledger activity and speaker exposures.
+
+The candidate bounded-prefix reduction punctures the KDF/PRF path at the next
+canonical microstep, uses delayed backdoor programming to install the capsule,
+and replaces sibling subtrees by independent seeds.  A separate
+authentication argument must establish exact or statistical functional
+equivalence for each iO change; computational certificate unforgeability alone
+is insufficient.
+
+Status: this lemma is \emph{open}.  The cited general-purpose
+ordinary-iO-based succinct TM-iO gives only a declared bounded-input object.
+With predictable oracle points, the PPDE evidence applies only to a
+selective-capsule bounded-prefix experiment in which the capsules are fixed
+before carrier-key setup, not to the real--ideal simulation above.  The
+hidden-nonce lift at the end of \cref{sec:ongoing} is the candidate online
+repair for the latter gaps.
+
+\paragraph{$Z$: two-stage finite preparation, garbling, and exposure.}
+Property~$Z$ has an explicit causal interface.
+\begin{description}
+  \item[$Z.\mathsf{Prepare}$.]
+    Before the inputs of stretch $e$ are known, fix structural external-input
+    label pairs, token pairs, semantic permutations, public token-validity
+    tags, corrupt shares, honest encrypted role packets, and the complete
+    certificate preparation for that stretch.  For $e=0$, it consumes the
+    honestly derived material returned by $Y$'s initialization step rather
+    than resampling an incompatible frontier; that material includes full
+    initial-state pairs and the published active member representing $s_0$.
+  \item[$Z.\mathsf{Complete}(y_e)$.]
+    After the input slots close, take the already fixed active external-input
+    labels, the active carried-state labels, and the public ideal output
+    $y_e$.  Produce garbled tables and decoding information consistent with
+    those labels, together with fresh hidden next-state pairs and their active
+    members.  The procedure need not learn the semantic input or carried
+    state.  Its fresh preparation call for stretch $e+1$ uses the already
+    closed $\mathsf{PKBatch}_{e+1}$ and pre-oracle descriptor $Q_e$.  This is
+    a simulator-side target sampled without $\mathbf W_e$ or $M_e$;
+    property~$Y$ must subsequently choose or program $\mathbf W_e$ so that the
+    public object realizes that target.
+\end{description}
+
+Condition on every ordinary readout committee having at most $t$ corrupt
+members.  Initially corrupt members' ciphertexts and shares must be fixed
+honestly from preparation.  When a selected honest role later speaks, its
+key, packet, token, coins, shares, and retained call record must be exposed
+consistently with the reconstructed active label.  Encryption hybrids may be
+used only under honest keys that remain silent.  One-role-per-key guarantees
+one \emph{canonical} packet, not one ciphertext globally: packets created on
+adversarial fork histories are handled by the isolation clause of $Y$, while
+$Z$ simulates their later openings as fork material.  Threshold privacy hides
+the canonical inactive label, and the hidden semantic permutation hides the
+meaning of the observed structural branch.
+
+The garbling sublemma must support prescribed active external and carried
+labels, a prescribed public output, and a pair of hidden next-state labels
+whose active member can be carried into the next simulated stretch.  This is
+stronger syntax than a bare statement of ordinary one-shot garbling privacy.
+Publishing the tables only after input closure is what makes
+$Z.\mathsf{Complete}(y_e)$ causal.
+
+Status: this lemma is \emph{conjectured}.  Static input-provider corruption is
+used critically: an honest provider's unopened token map is never exposed
+after the simulator has selected a dummy structural branch.  Token-tag
+collisions or inversions, sharing failures, and malformed-opening acceptance
+are recorded separately as auxiliary bad events.
+
+\subsection{The straight-line simulator}
+
+Assuming $X$, $Y$, and $Z$, the global simulator proceeds as follows.
+\begin{enumerate}
+  \item It samples registration and every immutable computation-corruption
+    coin exactly as in the real process and starts the online simulator of
+    $Y$.  When canonical $I$ is fixed, it invokes $Y.\mathsf{Initialize}(I)$
+    to derive $\mathsf{Prep}_0$ and $\Phi_0$ honestly, then passes the
+    corresponding input and certificate material to $Z.\mathsf{Prepare}$ for
+    stretch $0$.  No initialization capsule is programmed.
+  \item For a statically corrupt provider it forms the provider packet and
+    token map honestly.  It extracts the effective input from the closed slot.
+    On a malformed or missing slot it supplies $\pi_w^{-1}(0)$ to the ideal
+    process, coupling the uniform protocol and ideal defaults.
+  \item For an honest provider it publishes one uniformly selected valid
+    structural token.  This distribution is independent of the provider's
+    semantic bit, and static corruption means the unused semantic map is never
+    opened.  The honest input reaches the ideal process without being shown to
+    the simulator.
+  \item It fixes corrupt committee shares from preparation.  For the selected
+    honest committee it later exposes role states reconstructing the active
+    label; honest sibling roles remain silent.
+  \item Once the input slots and $\mathsf{PKBatch}_{e+1}$ have both closed,
+    it forms the full pre-oracle descriptor $Q_e$, supplies all extracted
+    corrupt inputs to the ideal process, and privately receives
+    $(\mathsf{OutputReady},e,y_e)$.
+  \item It invokes $Z.\mathsf{Complete}(y_e)$ with the active external and
+    carried labels, and invokes $Z.\mathsf{Prepare}$ for stretch $e+1$ under
+    the closed next-key batch.  These outputs determine a finite sequence of
+    complete microstep capsules.  Collectively, their public fragments are
+    $\GC_e$, decoding data, and $\mathsf{Prep}_{e+1}$; their final successor is
+    the entire frontier for stretch $e+1$.  Before an accepted certificate
+    exists, it calls
+    $Y.\mathsf{Program}(Q_e,\mathsf{Capsules}_e)$ to install all of them and
+    obtain $\mathbf W_e$.
+  \item Only after all capsules for the extension are installed does it expose
+    $\mathbf W_e$,
+    form $M_e$, and use $X$ to produce the canonical certificate transcript.
+    In particular, the final honest opening that crosses the acceptance
+    threshold is released after installation.  Property~$X$ confines the
+    extension to the unique certified checkpoint.
+  \item Anyone may now evaluate the canonical OGCS extension.  Public garbled
+    evaluation exposes the active next-state labels and triggers public
+    delivery of $y_e$, after which the simulator repeats.
+\end{enumerate}
+At no point does the simulator receive the ideal hidden state or an honest
+input bit.  It uses only corrupt inputs, prescribed post-speech leakage, and
+public outputs.
+
+\subsection{First bad event rather than circular conditioning}
+
+Committee-overflow events are handled first by conditioning on independent
+$\mathsf{GoodCom}$ and $\mathsf{GoodCert}$ events and paying their explicit
+probabilities.  Within those conditioned experiments, let
+$\mathsf{BadCrypto}$ be the first occurrence of a token-tag or digest
+collision, inversion of an unopened one-way value, acceptance of a malformed
+key or share, a false hidden trigger, or a premature oracle query in the
+bounded selective programming experiment.  Protocol invariants---unique
+canonical key assignment, absorbing rejection, and exact prefix
+consistency---are requirements of the construction or property~$Y$, not
+probabilistic adversarial events.
+
+For each cryptographic bad event, we stop a hybrid immediately before its
+first occurrence.  Adjacent stopped processes are shown indistinguishable;
+the event is proved negligible in the endpoint where this is easiest; and
+negligibility is transported back through the hybrids.  This is the
+``Everywhere from Anywhere'' pattern of
+\cite[Lemma~8]{DamgardEtAl2025AsyncYOSO}.  The transport loss is retained in
+the bookkeeping rather than silently discarded.
+
+\subsection{Conditional bookkeeping theorem}
+
+Let $Q_{\mathsf{com}}$ be the number of ordinary size-$k$ readout committees
+in the inspected prefix.  For $p<1/3$ and
+$t=\lfloor(k-1)/3\rfloor$,
+\[
+  \delta_{\mathsf{com}}
+  \leq Q_{\mathsf{com}}
+       \exp\bigl(-2k(1/3-p)^2\bigr),
+\]
+which is $Q_{\mathsf{com}}e^{-k/72}$ at $p=1/4$.  Let
+$\delta_{\mathsf{cert}}$ denote the distinct certificate-role concentration
+and code-union-bound failure from $X$.  Let
+$\epsilon_X,\epsilon_Y,\epsilon_Z$ be the three replacement advantages, and
+let $\epsilon_{\mathsf{aux}}$ collect only disjoint collision, token-hash,
+sharing, malformed-opening, and primitive-correctness errors not already
+included in those terms.
+
+\paragraph{Conditional whole-execution emulation template.}
+If properties $X$, $Y$, and $Z$ hold with the horizon-free online quantifiers
+stated above, then
+\[
+  \forall\mathcal A\;\exists\mathcal S\;\forall\mathcal Z:
+  \qquad
+  \mathsf{Real}_{\Pi,\mathcal A,\mathcal Z}
+  \approx
+  \mathsf{Ideal}_{F,\mathcal S,\mathcal Z}.
+\]
+A conservative transported-hybrid accounting has the form
+\[
+\begin{split}
+  \mathsf{Adv}^{\mathsf{real\text{-}ideal}}_{\Pi,F}
+  \leq{}& \delta_{\mathsf{com}}+\delta_{\mathsf{cert}}\\
+        &+2\bigl(\epsilon_X+\epsilon_Y+\epsilon_Z
+                 +\epsilon_{\mathsf{aux}}\bigr).
+\end{split}
+\]
+The factor two is only a safe placeholder for transporting bad-event bounds;
+a completed hybrid sequence should replace it by exact accounting.
+
+This is deliberately a theorem \emph{template}, not a claimed security
+theorem.  Property~$Y$ is open in both its horizon-free realization and online
+oracle timing, property~$Z$ still requires a concrete two-stage
+prescribed-label garbling lemma, and property~$X$ needs its distributed
+full-exposure proof.  Writing the statement now fixes the interfaces between
+the arguments without pretending that those arguments have already been
+completed.

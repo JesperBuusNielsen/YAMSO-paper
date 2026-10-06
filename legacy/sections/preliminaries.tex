@@ -1,0 +1,142 @@
+\section{Preliminaries: What Must Be Fixed}
+\label{sec:preliminaries}
+
+This section is presently a roadmap.  The final paper should reproduce every
+definition whose details affect the YAMSO claim, while importing routine
+cryptographic syntax and standard security definitions by reference.
+
+\subsection{Conventions}
+
+We write $\lambda$ for the security parameter, $[n]=\{1,\ldots,n\}$, and
+$\bits^*$ for the set of finite bit strings.  All adversaries and protocols
+are probabilistic polynomial time unless explicitly stated otherwise, and
+$\negl(\lambda)$ denotes a negligible function.  Protocol identifiers,
+epochs, wire identifiers, public-key indices, ledger positions, and object
+types must be included in every cryptographic domain separator.  A computation
+key is assigned to exactly one canonical protocol role.
+
+\subsection{Definitions that belong in this paper}
+
+The following objects are model-specific and should eventually be defined in
+full.
+
+\begin{description}
+  \item[Ledger.] One synchronous, append-only list $L$ seen identically by
+    every party.  It begins with a generic CRS, grows by registration and
+    scheduled message entries, and performs no protocol-specific validation.
+    It has no cryptographic certification key.
+
+  \item[Growing key registry.] An adversarial registration request creates a
+    computation PID equal to its fresh public key.  A registration from an
+    existing application PID creates and publicly binds a protected key to
+    that named party.  Neither request contains a protocol role; registration
+    order determines roles at the protocol level.
+
+  \item[YAMSO turn.] A public initialization parameter
+    $\mathsf{WhosTurn}$ selects one unspent PID from the current $L$.  The
+    selected party either produces one message or receives an explicit
+    $\mathsf{NoMsg}$ entry and is then spent forever.
+
+  \item[Protected local evaluation.] An honest scheduled party supplies an
+    algorithm $A$ privately to the ledger, which evaluates $A(sk,L)$ without
+    first returning $sk$ to the party.  This lets an ordinary role reveal its
+    entire key and an input role reveal only an input-dependent function of
+    its state through the same generic interface.
+
+  \item[Two corruption rules.] Each computation PID is independently corrupt
+    with probability $p$ when registered and, if honest, cannot later be
+    corrupted.  Named application parties have the ordinary adaptive
+    corruption interface in the model.  The first construction statement
+    restricts their corrupt set to be fixed before setup.
+
+  \item[Closed input slot.] At a protocol-defined cutoff, the public ledger
+    prefix determines one immutable input record.  Public branch-indexed
+    one-way tags determine whether it contains exactly one valid activation
+    token.  A missing, ambiguous, or malformed record selects the structural
+    default branch; late messages are ignored.
+
+  \item[Common-input certificate.] Fresh one-use roles hold opposite one-way
+    preimages for the coordinates of an encoded digest.  Honest roles compute
+    the value to be certified from the same closed ledger cut, rather than
+    signing a caller-supplied string.  Verification permits enough missing
+    openings for liveness but must rule out a second accepted digest.
+
+  \item[OGCS prefix.] A fixed finite public object is evaluated on complete
+    finite histories.  Outputs on every accepting history are literal
+    prefixes.  A history that first differs at some accepted command must not
+    reveal the hidden logical state of the canonical history; a rejected
+    history never extends again.
+\end{description}
+
+\subsection{Primitives that can largely be imported}
+
+Standard definitions of pseudorandom functions, collision-resistant and
+one-way hashing, commitments, secret sharing, public-key encryption, and
+circuit garbling need not be repeated in full.  We should state the exact
+variants used and cite them.  The following interfaces require particular
+care.
+
+\begin{description}
+  \item[Role-state encryption.] Role membership is public in the preliminary
+    model, so ordinary multi-user encryption can protect the state placed
+    under each registered key; recipient anonymity is not required by this
+    abstraction.  The semantic association between the two structural
+    committees for an input wire must nevertheless remain hidden.  Each key
+    has one canonical role packet.  Off-path evaluations may address further
+    packets to the same key, and later disclosure decrypts them; the OGCS
+    isolation lemma must make all such plaintexts independently rooted fork
+    material.
+
+  \item[Verifiable threshold sharing.] The construction needs privacy below
+    the reconstruction threshold, reconstruction from honest shares, and
+    public rejection of malformed shares or keys.  Public verification data
+    must not disclose the semantic branch permutation.
+
+  \item[Two-stage garbled circuits.] Preparation fixes external-input label
+    pairs, tokens, and role packets before inputs arrive.  Completion occurs
+    only after input closure and must support prescribed active external and
+    carried-state labels, prescribed public output, hidden next-state label
+    pairs, and consistency with every later-exposed selected role.  This
+    causal interface is stronger than a bare one-shot privacy statement.
+
+  \item[High-distance one-time opening.] The certificate uses the distance
+    idea from Lamport-style leakage-resilient signatures
+    \cite{KatzVaikuntanathan2009LeakageSignatures}.  The paper must prove its
+    own partial-opening liveness and non-equivocation statement under random
+    role corruption and complete post-speech exposure, including an explicit
+    code-rate-versus-tail calculation.
+
+  \item[Succinct TM-iO and puncturing.] For a declared input-length bound, the
+    candidate OGCS can use a compact obfuscated Turing-machine program with
+    puncturable PRF/KDF state
+    \cite{KoppulaLewkoWaters2014IOTM,AnanthJainSahai2017TMIO}.  We must state
+    the bound, succinctness, functionality-equivalence condition, and any
+    equal-running-time requirement.  The cited general-purpose
+    ordinary-iO-based bounded-input results do not by themselves realize the
+    horizon-free replay interface of \cref{sec:ongoing}.
+
+  \item[Delayed backdoor programming.] Hofheinz et al.'s adaptive universal
+    sampler provides the hidden-trigger paradigm
+    \cite{HofheinzEtAl2014UniversalSamplers}.  Selectively secure pseudorandom
+    puncturable deterministic encryption gives a related formulation
+    \cite{KoppulaPoelstraWaters2017FastSamplers}.  Their theorems do not apply
+    automatically to our stateful syntax; the OGCS replacement lemma must be
+    proved separately.
+
+  \item[Statistical binding for iO hybrids.] Computational unforgeability does
+    not by itself justify iO between programs that differ on an invalid but
+    mathematically possible input.  In its binding setup, a somewhere
+    statistically unforgeable signature makes alternate valid signatures at a
+    selected round and message statistically nonexistent, except with
+    negligible setup probability \cite{FernandoEtAl2023SSU}.  Adapting that
+    property to our certificate chain is an open proof obligation.
+\end{description}
+
+\paragraph{Proof boundary.}
+The main text uses the generic ledger interface of \cref{sec:model}.  Once the
+API is stable, a detailed $\mathcal F_{\mathsf{Ledger}}$ can be placed in an
+appendix.  The target functionality contains only named application parties;
+the randomly corrupted computation population is implementation machinery to
+be simulated away.  Intermediate cryptographic components are handled by
+whole-process replacement lemmas, avoiding hybrid interfaces that export
+their secret trapdoors to the environment.
