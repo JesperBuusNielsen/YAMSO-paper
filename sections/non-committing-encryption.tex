@@ -1,48 +1,56 @@
-\subsection{Receiver Non-Committing Encryption}
+\subsection{Non-Committing Encryption}
 \label{sec:nce}
 
-Non-committing encryption was introduced by Canetti et al.\
-\cite{CanettiEtAl1996AdaptiveMPC}; the receiver-only variant is due to
-Jarecki and Lysyanskaya~\cite{JareckiLysyanskaya2000AdaptiveThreshold}.
-It allows a simulator to prepare a public key and ciphertext without
-knowing the message, and later explain the receiver's state consistently
-with that message.  We use the receiver-only restriction of the
-key-first simulation definition of Hemenway et al.\
-\cite[full version, Definition~2]{HemenwayEtAl2016QuasiOptimalNCE}, with explicit
-game commands and private simulator state.  The adversary chooses the
-message after seeing the public key.  Exposure of
-randomness is already part of the early erasure-free model; see also
+Non-committing encryption (NCE) was introduced by Canetti et al.\
+\cite{CanettiEtAl1996AdaptiveMPC}.  It lets a simulator prepare a public
+key and ciphertext without knowing the message, and later explain the
+sender's and receiver's random tapes consistently with that message.
+We give the key-first definition of Hemenway et al.\
+\cite[Definition~2]{HemenwayEtAl2016QuasiOptimalNCE} explicit game
+commands; the same definition appears in Brakerski et al.\
+\cite[full version, Definition~11]{BrakerskiEtAl2020ConstantNCE}.
+In particular, the message may be chosen after the public key is known.
+Full random-tape exposure, rather than exposure of the final secret key
+alone, is essential when there are no erasures; see also
 Damg{\aa}rd and Nielsen~
 \cite[full version, Section~4]{DamgardNielsen2000NCE}.
 
 \subsubsection{Syntax and correctness}
-Fix a polynomial message length $\ell=\ell(\lambda)$.  The scheme has
-polynomial-time algorithms
+Fix a public message length $\ell=\ell(\lambda)$, polynomial in the
+security parameter.  All algorithms below are parameterized by $\ell$;
+we omit this fixed parameter from their calls.  The encryption scheme
+has polynomial-time algorithms
 \[
   (\pk,\sk)\sample\KeyGen(1^\lambda),\qquad
   c\sample\Enc(\pk,m),\qquad
-  m'\gets\Dec(\sk,c),
+  m'\sample\Dec(\sk,c),
 \]
-where $m\in\bits^\ell$ and decryption is deterministic, with output
-in $\bits^\ell\cup\{\bot\}$.  The message-length bound is fixed as
-part of the scheme.  Correctness requires, for every efficient algorithm
-$\mathcal B$ that chooses a message $m\in\bits^\ell$ after seeing
-the public key,
+where $m\in\bits^\ell$ and decryption returns an element of
+$\bits^\ell\cup\{\bot\}$.  We allow randomized decryption, as in the
+constant-rate construction cited below.  When its coins matter we write
+$\Dec(\sk,c;\delta)$; otherwise fresh independent coins are understood.
+Keys and ciphertexts have prescribed polynomial lengths, using padding
+if needed.
+Correctness requires, for every efficient algorithm $\mathcal B$ that
+chooses a message $m\in\bits^\ell$ after seeing $\pk$,
 \[
   \Pr\bigl[\Dec(\sk,c)=m\bigr]\geq 1-\negl(\lambda),
 \]
-where the probability is over the experiment
+where $(\pk,\sk)\sample\KeyGen(1^\lambda)$,
+$m\sample\mathcal B(1^\lambda,\pk)$, and
+$c\sample\Enc(\pk,m)$.  The probability includes the decryption coins.
+
+Write $\rho_R$ and $\rho_S$ for the \emph{complete} uniform random
+tapes of key generation and encryption, respectively, each of a fixed
+polynomial length.  Thus
 \[
-  \begin{aligned}
-    (\pk,\sk)&\sample\KeyGen(1^\lambda),\\
-    m&\sample\mathcal B(1^\lambda,\pk),\\
-    c&\sample\Enc(\pk,m).
-  \end{aligned}
+  (\pk,\sk)=\KeyGen(1^\lambda;\rho_R),\qquad
+  c=\Enc(\pk,m;\rho_S)
 \]
-Write $\rho$ for the \emph{complete}
-uniform random tape of key generation, of a fixed polynomial length.
-Thus $(\pk,\sk)=\KeyGen(1^\lambda;\rho)$ determines the receiver's
-entire key-generation computation, not just its final secret key.
+determine the two computations completely.  A receiver that subsequently
+decrypts also retains its decryption coins; these are fresh local coins,
+not part of $\rho_R$.  The experiment below has no private decryption
+step before corruption.
 
 \subsubsection{Simulation with random-tape exposure}
 A simulator consists of two efficient algorithms:
@@ -50,55 +58,71 @@ A simulator consists of two efficient algorithms:
   \item[$\SimNCE(1^\lambda)\to(\widetilde{\pk},\widetilde c,\SimState)$.]
     Prepare a simulated public key and ciphertext, retaining private
     state $\SimState$, without receiving the message.
-  \item[$\ExplainNCE(\SimState,m)\to\widetilde\rho$.]
-    Given the message, produce an explanation of the receiver's complete
-    key-generation tape.
+  \item[$\ExplainNCE(\SimState,m)\to
+      (\widetilde\rho_R,\widetilde\rho_S)$.]
+    Given the message, explain the complete key-generation and
+    encryption tapes for the previously prepared pair.
 \end{description}
 
 The experiments $\NCEReal_{\mathcal A}(1^\lambda)$ and
-$\NCEIdeal_{\mathcal A,\mathcal S}(1^\lambda)$ give $1^\lambda$
-to the efficient adversary $\mathcal A$ and offer these commands:
+$\NCEIdeal_{\mathcal A,\mathcal S}(1^\lambda)$ give $1^\lambda$ and
+$\ell$ to the efficient adversary $\mathcal A$ and offer these commands:
 \begin{description}
   \item[$\GetPublicKey()$.]
-    In the real experiment, sample $\rho$ uniformly and compute
+    In the real experiment, sample $\rho_R$ uniformly and compute
     \[
-      (\pk,\sk)\gets\KeyGen(1^\lambda;\rho).
+      (\pk,\sk)\gets\KeyGen(1^\lambda;\rho_R).
     \]
-    Retain $(\sk,\rho)$ and return $\pk$.
+    Retain $(\sk,\rho_R)$ and return $\pk$.
     In the ideal experiment, compute
-    $(\widetilde{\pk},\widetilde c,\SimState)\sample\SimNCE(1^\lambda)$,
+    \[
+      (\widetilde{\pk},\widetilde c,\SimState)\sample\SimNCE(1^\lambda),
+    \]
     retain $(\widetilde c,\SimState)$, and return $\widetilde{\pk}$.
-    The precomputed ciphertext $\widetilde c$ remains private until
-    $\EncryptMessage$.
+    The precomputed ciphertext remains private until $\EncryptMessage$.
   \item[$\EncryptMessage(m)$.]
     Store $m\in\bits^\ell$, which may depend on the public key.
-    In the real experiment, compute $c\sample\Enc(\pk,m)$ using
-    fresh randomness and return $c$.
+    In the real experiment, sample $\rho_S$ uniformly and return
+    $c\gets\Enc(\pk,m;\rho_S)$.
     In the ideal experiment, return the stored ciphertext $\widetilde c$.
     The simulator is not given $m$ at this step.
+  \item[$\CorruptSender()$.]
+    In the real experiment, return $(m,\rho_S)$.
+    In the ideal experiment, return $(m,\widetilde\rho_S)$, using the
+    cached explanation described below.
   \item[$\CorruptReceiver()$.]
-    In the real experiment, return $(\sk,\rho)$.
+    In the real experiment, return $(\sk,\rho_R)$.
     In the ideal experiment, compute
-    $\widetilde\rho\sample\ExplainNCE(\SimState,m)$ and
-    $(\pk',\widetilde{\sk})\gets\KeyGen(1^\lambda;\widetilde\rho)$,
-    and return $(\widetilde{\sk},\widetilde\rho)$.
+    $(\pk',\widetilde{\sk})\gets
+      \KeyGen(1^\lambda;\widetilde\rho_R)$
+    from the cached explanation, and return
+    $(\widetilde{\sk},\widetilde\rho_R)$.
   \item[$\Finish(b)$.]
     Terminate and output $b\in\bits$.
 \end{description}
-The commands $\GetPublicKey$, $\EncryptMessage$, and $\CorruptReceiver$
-are accepted at most once each and only in that order; $\Finish$ may
-be called at any time.  Malformed, out-of-order, or repeated commands
-return $\bot$ without changing state.  Termination without an output
-bit is interpreted as $\Finish(0)$.
-
-\begin{definition}[Receiver non-committing security]
-\label{def:receiver-nce}
-The scheme is receiver non-committing with random-tape exposure if there
-exists an efficient simulator
+On the \emph{first} corruption command in the ideal experiment, give
+$m$ to the simulator, compute
 \[
-  \mathcal S=(\SimNCE,\ExplainNCE)
+  (\widetilde\rho_R,\widetilde\rho_S)
+    \sample\ExplainNCE(\SimState,m),
 \]
-such that, for every efficient adversary $\mathcal A$, there is a negligible
+and cache this pair for both corruption commands.
+
+The commands $\GetPublicKey$ and $\EncryptMessage$ are accepted once
+each, in that order.  Each corruption command is accepted at most once,
+only after $\EncryptMessage$, and the two corruptions may occur in either
+order.  The adversary may omit either or both.  Malformed, out-of-order,
+or repeated commands return $\bot$ without changing state.  $\Finish$
+may be called at any time; termination without an output bit means
+$\Finish(0)$.  Allowing the adversary to request the two parts of one
+explanation at different times is just post-processing of the joint
+exposure in the cited definitions.
+
+\begin{definition}[Non-committing security]
+\label{def:nce}
+The scheme has non-committing security with tape exposure if there exists
+an efficient simulator $\mathcal S=(\SimNCE,\ExplainNCE)$ such that,
+for every efficient adversary $\mathcal A$, there is a negligible
 function $\varepsilon_{\mathcal A}$ satisfying
 \[
   \left|
@@ -108,23 +132,38 @@ function $\varepsilon_{\mathcal A}$ satisfying
 \]
 \end{definition}
 
-In particular, except with negligible probability, the explanation must
-satisfy both
-\[
-  \KeyGen(1^\lambda;\widetilde\rho)
-    =(\widetilde{\pk},\widetilde{\sk})
-  \quad\text{and}\quad
-  \Dec(\widetilde{\sk},\widetilde c)=m.
-\]
-Otherwise the adversary could distinguish by checking these equations.
-Consistency alone is not enough: the exposed tape must also be
-indistinguishable from the actual tape in the real experiment.  It
-explains an honest receiver's computation; it need not be the randomness
-actually used internally by the simulator.
+\begin{definition}[Sender and receiver restrictions]
+\label{def:sender-nce}
+\label{def:receiver-nce}
+\emph{Sender non-committing encryption} (SNCE) requires the same
+indistinguishability only for adversaries that never call
+$\CorruptReceiver$.  \emph{Receiver non-committing encryption} (RNCE)
+requires it only for adversaries that never call $\CorruptSender$.
+Each restriction permits its own simulator.  Full NCE implies both by
+discarding the unused part of the explanation.  The receiver-only
+notion originates with Jarecki and Lysyanskaya~
+\cite{JareckiLysyanskaya2000AdaptiveThreshold}.
+\end{definition}
 
-This is a single-ciphertext definition with adaptive message selection:
-$m$ may depend on the public key, but the simulator learns it only at
-$\CorruptReceiver$.  It does not assert security for several ciphertexts
-under the same key.  Only the receiver's tape is exposed; unlike the
-full non-committing definition in~\cite{HemenwayEtAl2016QuasiOptimalNCE},
-no explanation of the sender's encryption randomness is required.
+In the full game the explained tapes must, except with negligible
+probability, satisfy
+\[
+  \KeyGen(1^\lambda;\widetilde\rho_R)
+    =(\widetilde{\pk},\widetilde{\sk}),\qquad
+  \Enc(\widetilde{\pk},m;\widetilde\rho_S)=\widetilde c.
+\]
+They must also have the correct joint computational distribution, not
+merely satisfy these equations.  Decrypting $\widetilde c$ with the
+explained secret key and fresh coins recovers $m$ except with negligible
+probability.  Explained tapes describe honest computations; they need
+not be the tapes actually used internally by the simulator.
+
+This definition covers only one ciphertext per key.  We use a
+separate key for each input provider's entire prescribed-length input,
+and separate delivery keys for the receiver-only applications.
+The full NCE constructions of Brakerski et al.\
+\cite[full version, Section~6, Theorems~23--24]{BrakerskiEtAl2020ConstantNCE}
+give constant ciphertext expansion under their DDH or LWE assumptions.
+For long messages,
+their ciphertext length is $O(\ell)+\poly(\lambda)$; this rate excludes
+public-key size and does not assert linear total computation.

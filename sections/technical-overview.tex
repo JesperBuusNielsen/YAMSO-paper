@@ -21,7 +21,11 @@ interface is deferred to the formal treatment.
   \item[Growing registration and corruption]
     Parties may register throughout the execution.  The ledger generates
     their public keys, records them in $L$, and retains the corresponding
-    secret material and random tapes as protected state.  Each newly
+    secret material and random tapes as protected state.  A registered
+    tuple contains a delivery-encryption key $\ncek$ and a signature
+    verification key $\sigvk$; their use is determined by the protocol
+    role.  Key generation is honest even for a party selected for initial
+    corruption.  Each newly
     registered computation party is independently corrupt with probability
     $p<1/3$; if so, its state is disclosed to the adversary.  Application
     parties---the input providers and output recipients---are not subject
@@ -36,10 +40,8 @@ interface is deferred to the formal treatment.
     the adversary may corrupt it adaptively and obtain its retained state.
     Output recipients are instead subject to chosen adaptive corruption
     at any time, whether or not they have posted or received their output.
-    There is no bound on the number of corrupted output recipients or on
-    post-message corruptions.  The parameter $p$ governs only the initial
-    random corruption of computation parties.  Registration itself does
-    not count as speaking.
+    Chosen corruptions are unbounded; $p$ governs only initial computation
+    corruptions.  Registration does not count as speaking.
 
   \item[One opportunity to speak]
     A fixed, protocol-dependent schedule determines from $L$ which parties
@@ -61,10 +63,8 @@ interface is deferred to the formal treatment.
     \[
       y\gets Y(\sk_P,L).
     \]
-    It may repeat this operation any number of times, with different
-    algorithms.  These private evaluations do not count as speaking, do
-    not consume its posting opportunity, and do not change its corruption
-    status.
+    These private evaluations may be repeated with different algorithms;
+    they neither count as speaking nor change the party's corruption status.
 
     During its single posting opportunity, the party may instead privately
     submit an efficient algorithm $M$, with any private input embedded in
@@ -92,14 +92,12 @@ even before speaking.  Capturing such contexts requires separating public
 keys from physical machines; this composition issue is outside the present
 abstraction.
 
-Keeping secret state inside $\FLedger$ is UC bookkeeping for private local
-computation, not a
-proposal that a blockchain hold users' secrets.  It lets the protocol use a
-secret key without returning that key as an intermediate interface output
-visible to the environment.  The general private-evaluation interface does
-permit key disclosure by choosing $Y(\sk_P,L)=\sk_P$; the protocol specifies
-which algorithms honest parties actually submit.  The ledger itself knows
-nothing about garblings, committees, or activation tokens.
+Keeping secret state inside $\FLedger$ is UC bookkeeping, not a proposal
+that blockchains hold users' secrets.  It avoids returning secret keys
+as intermediate interface outputs visible to the environment.
+Although $Y(\sk_P,L)=\sk_P$ would disclose the key, the protocol specifies
+honest parties' algorithms.  Garblings, committees, signature checks,
+and ciphertext interpretation belong to that protocol, not the ledger.
 
 \subsection{The ideal functionality}
 \label{sec:overview-functionality}
@@ -119,43 +117,42 @@ corruptions are implementation details and do not appear in this ideal task.
     specify the same $F$; agreement on $F$ is not a task our protocol solves.
     Circuits may be chosen as the computation proceeds.
 
-  \item[Wire assignments]
-    Each external input and output wire $w$ has a designated party identifier
-    $\pid_w$.  The functionality notifies that party of its wire, and the
-    assignment $(w,\pid_w)$ is also visible to the environment and the
-    adversary.  This reveals the assignment, not the bit carried by the wire.
-    The wires carrying the retained state have no assigned input provider
-    or output recipient.
-    In the implementation, we identify an application party with its
-    registered public-key tuple $\pid=(\ncek,V)$, where $\ncek$ is a
-    receiver non-committing encryption key and $V$ is public verification
-    data used to authorize inputs.  The use of these components is explained
-    with the gadgets below.
-    Each application wire role uses its own previously unused key tuple,
-    so input and output roles have distinct keys even if they serve the
-    same application user.
+  \item[Input groups and output wires]
+    The circuit's external input wires are partitioned into groups.
+    Group $a$ has a public length $\ell_{s,a}$ in round $s$ and a
+    designated provider $\pid_a$, which supplies that entire input string
+    in one message.  Each output wire $i$ still has its own designated
+    recipient.  The functionality notifies parties of their assignments;
+    these assignments and lengths are also visible to the environment
+    and adversary.  The state wires have no assigned application party.
+
+    In the implementation, an application identifier is its registered
+    public-key tuple $\pid=(\ncek,\sigvk)$.  Input providers use the signing
+    component and output recipients the delivery-encryption component;
+    corruption exposes the retained secret material and tapes for both.
+    Each input group and output wire uses its own previously unused
+    party, even when several roles serve the same application user.
 
   \item[Inputs]
-    Each input provider supplies one private bit for its assigned wire.
-    Honest providers supply their bits at the common start of the I/O
-    round; the start time is public, but their bits remain private.
-    The first valid bit received for that wire in the round is accepted;
-    subsequent submissions do not change it.  Malformed submissions are
-    ignored.  If no bit is received by the round's deadline, the
-    functionality selects an independent uniform bit for that wire.
-    These bits together form the input vector $x$.
+    Provider $a$ supplies a private string
+    $x_a\in\bits^{\ell_{s,a}}$.  Honest inputs are supplied at the
+    common start of the I/O round.  During the public input-posting phase,
+    the functionality notifies the adversary which providers supplied
+    an input, without revealing the strings; the implementation likewise
+    reveals whether a provider posts.  The first correctly sized input
+    is accepted, and subsequent submissions cannot change it.
+    Malformed submissions are ignored.  If no input is supplied by the
+    deadline, set $x_a=0^{\ell_{s,a}}$.
+    The concatenation of these strings is the circuit input $x$.
 
   \item[State update and outputs]
     Once the inputs are fixed, the functionality computes
     \[
       (\sigma',y)=F(\sigma,x).
     \]
-    It retains $\sigma'$ as its state for the next round and fixes each
-    output bit for the party assigned to its output wire.  Private
-    delivery takes place in the round's output phase, after the input
-    deadline and computation.
-    Neither the state nor honest parties' input and output bits are made
-    public by this operation.
+    It retains $\sigma'$ and fixes each output bit for its assigned
+    recipient; private delivery follows in the output phase.  Neither
+    the state nor honest parties' inputs and outputs are made public.
 
   \item[Adaptive corruption]
     Corruptions obey the admissibility rule in the ledger sketch above.
@@ -174,25 +171,22 @@ corruptions are implementation details and do not appear in this ideal task.
 \subsection{Gadgets}
 \label{sec:overview-gadgets}
 
-Each I/O round will use a fresh garbled circuit implementing $F$ together
-with the cryptographic operations needed to receive state and deliver
-outputs.  We first describe the components that make this possible; the
-next subsection will assemble them into the protocol.
+Each I/O round uses a fresh garbled circuit implementing $F$ together
+with input decryption, state transfer, and output delivery.  We describe
+the components before assembling the protocol.
 
 \begin{description}
   \item[Public sampling without a private garbler]
     For our protocol, $\crs$ contains universal-sampler parameters $U$.
     A public protocol rule determines an exact distribution description
-    $d$ from ledger entries specifying the round circuit and the registered
-    keys for private deliveries, together with a public nonce $Q$.
-    All fields other than $Q$ are fixed before that nonce is released.
-    Everyone computes the same
-    $\Sample(U,d)$, which includes a garbled circuit and encrypted
-    information for its participants.  The distribution generates
-    labels and other secrets internally, but does not return its random
-    tape or the garbler's encoding key.  Thus no participating machine has
-    to act as a garbler holding all these secrets.  After a nonce-only
-    bootstrap, we use one such main sample per I/O round.
+    $d$ from the round circuit, input lengths and assignments, registered
+    signing and delivery keys, committee rosters, and a nonce $Q$.
+    All fields other than $Q$ are fixed on the ledger before its release.
+    Everyone computes the same $\Sample(U,d)$: a garbled circuit and
+    encrypted information for its participants.  The distribution returns
+    neither its random tape nor the garbler's encoding key, so no
+    participating machine holds all the generated secrets.  After a
+    nonce-only bootstrap, we use one main sample per I/O round.
 
     Including delivery keys in $d$ is essential.  Replacing one of them
     changes the description and, in the universal sampler's ideal
@@ -204,106 +198,121 @@ next subsection will assemble them into the protocol.
   \item[A shared coin for the nonce]
     Each round $s$ has a nonce $Q_s$, chosen uniformly from $\bits^\lambda$
     and held as a robust secret sharing by a dedicated committee.
-    One committee suffices: all its members help reveal the same random
-    string, rather than selecting between two alternatives.
-    Its members have no other role.  Their shares are delivered in
-    encrypted packets, just as for label committees below.
-    Before this committee speaks, the protocol fixes the circuit,
-    application assignments, delivery keys, and committee assignments
-    for round $s$.  These choices cannot be revised after nonce release.
+    Its members have no other role and receive encrypted share packets,
+    just as for label committees below.  They speak only after all other
+    fields of $d_s$ have been fixed.
 
-    In one synchronous nonce-release round, honest members publish their
+    In one synchronous release round, honest members publish their
     decryption keys.  At the deadline, everyone reconstructs $Q_s$ from
-    the resulting shares, treating missing contributions as absent.
-    Within the sharing threshold, corrupt members can neither prevent
-    reconstruction nor change its result.  The nonce is one already-fixed
-    secret, not a combination of values that contributors choose while
-    watching one another speak.  Subsequent corruption of honest speakers
-    cannot withdraw their contributions or alter $Q_s$.
+    the recovered shares.  Within the sharing threshold, bad or missing
+    contributions cannot change the result or prevent reconstruction.
+    In particular, corrupt members cannot steer the nonce by choosing
+    their contributions after seeing honest ones.
 
-    The exact description $d_s$ is a fixed encoding of the previously
-    agreed fields and $Q_s$.  The nonce distinguishes this sample from
-    descriptions that could have been tried before those fields were
-    fixed.  It is not required to stay secret after release, and the
-    protocol does not restrict the adversary's other sampling queries.
+    The description $d_s$ is a fixed encoding of the agreed fields and
+    $Q_s$.  Until release, the hidden nonce protects it against advance
+    sampling queries.  The adversary's other queries remain unrestricted.
 
-    To prepare these nonces, the sample for round $s$ also draws an
-    independent $Q_{s+1}$ and encrypts its shares to the next nonce
-    committee.  That committee is reserved when $d_s$ is fixed, but the
-    next application circuit and its recipients need not be known yet.
-    These packets are part of the sample itself, not outputs of evaluating
-    the garbled circuit.  A single nonce-only bootstrap sample supplies
-    the first committee with shares of $Q_1$.
-    No speaking member acts as a dealer holding the next nonce or all its
-    shares.  All these committees can use previously registered keys.
+    The sample for round $s$ draws an independent $Q_{s+1}$ and encrypts
+    its shares to a committee reserved in $d_s$.  These packets are
+    available without evaluating the garbling or knowing the next
+    application circuit and recipients.  A nonce-only bootstrap supplies
+    shares of $Q_1$.  Thus no speaking dealer holds the entire nonce,
+    and all committees may use previously registered keys.
+
+  \item[Signed encrypted inputs]
+    For each input provider $a$ in round $s$, the sampling procedure
+    generates a fresh SNCE key pair $(\inputpk_{s,a},\inputsk_{s,a})$.
+    It publishes $\inputpk_{s,a}$ and embeds $\inputsk_{s,a}$ only
+    inside the garbled circuit.  This pair serves the provider's entire
+    input string and belongs to the sampled computation, not a registered
+    party.  It is distinct from signing, delivery, and state-transfer keys.
+
+    Once its public key is available, provider $a$ encrypts its input:
+    \[
+      c^{\mathsf{in}}_{s,a}\sample\Enc(\inputpk_{s,a},x_a).
+    \]
+    It signs an unambiguous encoding
+    $\InputRecord(\sid,s,a,d_s,c^{\mathsf{in}}_{s,a})$ and posts
+    the ciphertext and signature together.  Here $\sid$ identifies the
+    protocol session, $s$ the round, $a$ the input group, and $d_s$ the
+    exact sample description.  All parties verify the signature under
+    the provider's registered $\sigvk$; signatures are not themselves
+    garbled inputs.
+
+    The first correctly sized ciphertext with a valid signature and the
+    right context, received before the common input deadline, is accepted
+    irrevocably; other records are ignored.  Later signing-key disclosure
+    cannot replace that ciphertext or reopen the deadline, so an ordinary
+    one-time signature suffices.
+
+    The circuit decrypts each accepted ciphertext internally to obtain
+    $x_a$.  If the chosen encryption has randomized decryption, the
+    sampler independently chooses its coins $\delta_{s,a}$ and embeds
+    them with the decryption key.  Evaluation of the resulting Boolean
+    circuit is deterministic.  Input encryption uses fresh coins at
+    posting; no sender erases those coins or its signing state.
+
+    Sender non-commitment lets the simulator post the ciphertext without
+    knowing the input and explain the encryption coins when corruption
+    reveals it.  The signature remains valid for the unchanged
+    ciphertext.  Full NCE supplies both the sender and receiver properties
+    we use.
+
+  \item[Zero defaults]
+    A missing accepted ciphertext means the all-zero input of the
+    prescribed length.  Represent an accepted ciphertext by a public
+    flag 1 followed by its fixed-length encoding.  If none is accepted,
+    use $\DefaultInput$, a flag 0 followed by a zero payload of the same
+    length.  The circuit maps this record directly to $0^{\ell_{s,a}}$.
+    It also uses this value if decryption of an accepted ciphertext
+    returns $\bot$ or a string of the wrong length.
+
+    This public default record is not a message from the provider.
+    Its bits select labels just like ordinary ciphertext bits; no
+    correctness assumption for encryption with fixed coins is needed.
 
   \item[Label committees]
-    An input provider never receives the two garbled labels for its wire.
-    Instead, for each input wire $w$ of the garbled circuit, two fresh,
-    disjoint committees hold robust secret sharings of $L_{w,0}$ and
-    $L_{w,1}$, respectively.  For private-input wires, the association
-    between a committee and its semantic bit is hidden.  Each member holds
-    private information for just one committee.
+    All inputs to the augmented garbled circuit are now public bit
+    strings: the accepted ciphertext records, the incoming state
+    ciphertext, and the successor's state public key.  The application
+    inputs remain private because they are encrypted inside these records.
+    For every garbled input wire $w$, two fresh, disjoint committees
+    hold robust secret sharings of $L_{w,0}$ and $L_{w,1}$, respectively.
+    The committee-to-bit association is public.
+    Each member holds private information for just one committee.
 
-    When a committee is activated, its honest members publish their
+    The committee corresponding to the fixed public bit acts; the other
+    remains silent.  The selected committee's honest members publish their
     decryption keys, making their encrypted shares publicly recoverable.
     Robust reconstruction tolerates missing or incorrect shares within
     the threshold.  Honest members of the other committee remain silent;
     its initially corrupt members' shares alone do not reveal its label.
     Later corruption of the speakers does not expose the silent committee.
 
-    Some garbling schemes require a common string in addition to the
-    selected wire labels, for example a key that unlocks the garbled
-    circuit.  This is the $\GarbleAux$ component of $\Encode$ in
-    Section~\ref{sec:garbling}.  If present, we bundle a copy with each
-    label before sharing it.  The selected committees then release the
-    complete encoded input, without a separate release step for this
-    common material.
-
-  \item[Activation without revealing the input bit]
-    An input provider's public verification data is a pair
-    $V=(V_0,V_1)$, where $V_j=f(S_j)$ for a one-way function $f$ and two
-    independently chosen secret strings $S_0,S_1$.  These strings are part
-    of the provider's protected key material.  Revealing one of them is a
-    one-bit Lamport-style authorization~\cite{Lamport1979Signatures}; the
-    pair is used for just this input wire.
-
-    The sampler chooses a private uniform bit $\pi_w$.  Public committee
-    index $j$ represents semantic bit $j\oplus\pi_w$, so that committee
-    holds shares of $L_{w,j\oplus\pi_w}$.  The provider privately receives
-    $\pi_w$ and, to supply bit $b$, publishes the activation preimage
-    $S_{b\oplus\pi_w}$.  A committee recognizes its activation by checking
-    the corresponding public image $V_j$; it knows neither $\pi_w$ nor $b$.
-    In particular, committee members receive the images, not the secret
-    preimages.
-
-    The first valid preimage for the wire in its input round irrevocably
-    selects one committee.  Disclosure of the other preimage after the
-    provider is corrupted cannot overtake the first disclosure or
-    activate the other committee.  If no valid preimage arrives by the
-    common input deadline, a committee marked in advance as the default
-    acts instead.  Its public index is chosen uniformly and independently;
-    it is told that it is the default, not which semantic bit it represents.
+    If the garbling requires common encoding material $\GarbleAux$
+    (Section~\ref{sec:garbling}), bundle a copy with each label before
+    sharing it.  The selected committees then release a complete encoded
+    input without a separate release step.
 
   \item[Non-committing delivery and delayed release]
-    Each participant's private information is delivered in a receiver
-    non-committing ciphertext under its registered key: the permutation
-    bit for an input provider, or the share and activation instructions for
-    a committee member.  All information for one role is bundled into
-    one ciphertext under a previously unused delivery key in the round's sample.
-    This is the one ciphertext
-    per key that the proof programs using RNCE; other sampling descriptions
-    may produce ordinary encryptions under that same public key.
-    A role derives its information from the sample specified by the ledger
-    and uses the ledger's protected computation interface to decrypt it.
+    A committee member's share and public release instructions, or an
+    output recipient's pad, are delivered in a receiver non-committing
+    ciphertext under its registered key.  Input providers need no such
+    private delivery.  Each delivery role receives one bundled
+    ciphertext under an unused delivery key in the round's sample and
+    decrypts it through the ledger's protected interface.  This is the one
+    ciphertext per key programmed using RNCE; other descriptions may
+    produce ordinary encryptions under that public key.
 
-    The non-committing property matters when a role's full state is
-    exposed: after speaking for input providers and committee members,
-    or at any time for output recipients.  It lets the simulator explain an
-    earlier ciphertext consistently with the information now required,
-    including the receiver's key-generation tape.  Together with share
-    completion, it lets the proof fix initially exposed shares first and
-    later complete them to the selected garbled label.
+    Delivery packets use a fixed public length bound and padding, so
+    their keys may be registered before their exact contents or roles
+    are known.  On exposure---after speaking for
+    honest committee members, or at any time for output recipients---RNCE
+    lets the simulator explain an earlier ciphertext, including the
+    receiver's key-generation tape.  Together with share completion,
+    it lets the proof fix corrupt shares first and complete them to the
+    selected label later.
 
     All input choices for a round are closed before any honest committee
     releases labels and their bundled common material.
@@ -327,15 +336,11 @@ next subsection will assemble them into the protocol.
     of the state, not correlated wire labels or a secret held by a
     speaking intermediary.  Here we use ordinary IND-CPA encryption.
 
-    Crucially, $\statepk_{s+1}$ and the incoming state ciphertext are late
-    public inputs to the current garbled circuit, not part of its sampling
-    description.  The current round can therefore be sampled before either
-    value exists.  These public inputs still
-    receive only the garbled labels for their actual values: dedicated
-    committees release the labels for the values specified by the protocol
-    from the ledger.
-    Publishing
-    both labels would allow evaluation with a different successor key.
+    Crucially, $\statepk_{s+1}$ and the incoming ciphertext are late
+    public inputs, not part of the sampling description: the current round
+    can be sampled before either exists.  Committees release only the labels
+    for their protocol-specified values.  Publishing both labels would
+    allow evaluation with a different successor key.
 
   \item[Private outputs through public decoding]
     The sampler masks each output bit $y_i$ with an independent uniform
@@ -366,19 +371,20 @@ without requiring either round to know all future circuits or participants.
     The protocol's fixed allocation rule reserves a nonce committee from
     unused registered computation parties.  Everyone derives a nonce-only
     universal sample whose distribution chooses $Q_1$, shares it, and
-    encrypts the shares to that committee.  This sample contains no
-    garbling or application-input material.  The committee remains silent
+    encrypts the shares to that committee.  The committee remains silent
     until the first round's other description fields have been fixed.
 
   \item[Prepare the first round]
-    Fix the first application circuit, its wire assignments, all delivery
-    keys, and disjoint label committees.  Also reserve the committee that
-    will release $Q_2$.  Use unused parties from the registered pool,
-    waiting for more registrations only if that pool is insufficient.
+    Fix the first application circuit, its input groups and lengths,
+    output-wire assignments, registered signing and delivery keys, and
+    disjoint label committees for all augmented-circuit input bits.
+    Also reserve the committee for $Q_2$.  Use unused registered parties,
+    waiting for more registrations only if too few are available.
     Once these fields are frozen on the ledger, release $Q_1$ as described
     above and form $d_1$.  Everyone locally derives the same main sample:
-    the garbled circuit, its state-reception public key, the participants'
-    encrypted information, and the encrypted shares of $Q_2$.
+    the garbled circuit, its state-reception public key, its bundle of
+    input-encryption public keys, the participants' encrypted information,
+    and the encrypted shares of $Q_2$.
     No party has to post this sample.  The first circuit starts with the
     prescribed empty state, rather than decrypting a preceding ciphertext.
 
@@ -389,40 +395,34 @@ without requiring either round to know all future circuits or participants.
     $Q_{s+1}$ now releases it, and everyone derives $\Sample(U,d_{s+1})$.
     This makes $\statepk_{s+1}$ available
     as a public input to round $s$.  Preparing the successor requires its
-    application circuit and delivery keys, but not its private inputs,
+    application circuit, public input lengths, and registered role keys,
+    but not its private inputs,
     the still-uncomputed ciphertext $c_s$, or $\statepk_{s+2}$.
     There is therefore only one round of lookahead, not a recursive demand
     to prepare the whole future computation.
 
   \item[Close the current inputs]
-    Honest providers already received their bits at the round's common
-    start.  In the input phase, each privately decrypts its permutation
-    bit and posts the preimage authorizing its input.  At the common input
-    deadline, the first valid disclosure, or the default rule if none was
-    made, fixes one committee for each private-input wire.
-    The public inputs are fixed as well: the incoming state ciphertext
-    from the preceding evaluation and the successor's state public key
-    from the sample specified for that round.  These values are publicly determined by
-    the ledger and the protocol, not chosen afresh by an evaluator.
-    All these choices close before honest committees release any input
-    labels or common encoding material.
+    Providers receive their inputs at the round's common start and post
+    signed ciphertexts in its input phase; those without inputs stay silent.
+    At the deadline, each group's first acceptable ciphertext or
+    $\DefaultInput$ fixes its public record.  The incoming state ciphertext
+    and successor public key are also fixed by the preceding evaluation
+    and successor sample, respectively.  No evaluator chooses these values
+    afresh, and all are fixed before honest committees release an encoding.
 
   \item[Release one encoding]
     Members of all selected committees disclose their decryption keys in
     one synchronous release round.  At its deadline, missing or malformed
-    contributions are treated as absent.  Everyone recovers the shares
-    from the valid contributions and reconstructs one label per input
-    wire, including any common encoding material bundled with it.
-    The public-input committees release only the labels for the public
-    values specified by the ledger and protocol.  Within the sharing
-    threshold, missing or incorrect shares do not prevent reconstruction.
-    The unselected committees' honest members remain silent permanently;
-    later disclosures cannot reopen a closed input choice.
+    contributions are treated as absent.  Everyone robustly reconstructs
+    one label per input wire and its bundled common material.  The
+    unselected committees' honest members remain silent permanently;
+    later disclosures cannot reopen an input choice.
 
   \item[Evaluate and deliver]
     Everyone evaluates the garbled circuit locally with this encoding.
-    It decrypts the incoming state, applies the application circuit to
-    that state and the new inputs, and produces the masked output bits
+    It decrypts the incoming state and accepted application-input
+    ciphertexts, substitutes zero strings for default records, applies
+    the application circuit, and produces the masked output bits
     and $c_s$, the encryption of the updated state under
     $\statepk_{s+1}$.  Each output recipient privately recovers its pad
     and unmasks its bit.  The masked outputs and $c_s$ are common public
@@ -432,14 +432,21 @@ without requiring either round to know all future circuits or participants.
   \item[Continue with fresh roles]
     Round $s+1$ is already prepared.  It becomes the current round, and
     the protocol prepares its successor before repeating the input and
-    evaluation steps.  Each round uses one distribution description
-    specified by the ledger and protocol, and its single associated sample
-    $\Sample(U,d)$.  Recomputing it locally gives the same sample.
-    Unused parties from the registered pool supply later roles; fresh
-    registrations replenish that pool when necessary.  No per-round
-    registration is required.  Setup fixes the per-round circuit and
-    sample-size bounds, but not the total number of rounds.
+    evaluation steps.  Each round uses one ledger-specified description
+    and sample.  Unused registered parties supply later roles, with new
+    registrations needed only to replenish the pool.  Setup fixes per-round
+    circuit and sample-size bounds, but not the total number of rounds.
 \end{description}
+
+\paragraph{Input size.}
+One provider may supply any string within the round's public length
+bound using one ciphertext and one signature.  A constant-rate SNCE
+instantiation uses $O(\ell)+\poly(\lambda)$ ciphertext bits for an
+$\ell$-bit input.  Thus encrypting a long input need not multiply its
+length by a security-parameter factor.  This is a ciphertext-size
+statement, not a constant-overhead MPC claim: the public keys, garbled
+decryption, and committees have their own costs.  In particular, every
+ciphertext bit needs two label committees, of which only one speaks.
 
 \paragraph{When the next application is not yet known.}
 The next application circuit or its recipients may depend on the current

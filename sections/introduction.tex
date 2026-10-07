@@ -48,14 +48,12 @@ probability $p<1/3$.  An initially honest computation party is protected
 from targeted corruption while silent, but loses that protection once
 it speaks, with no bound on subsequent corruptions.
 
-This static random choice is a simple abstraction of an adversary
-choosing compromised physical machines and a hidden random assignment
-of computation roles to those machines.  We do not construct such an
-assignment mechanism or claim security for arbitrary changes to the
-underlying compromised population.  Exposing a computation role's
-internal state helps the adversary without granting the ideal-world simulator
-additional application information.  This motivates giving the
-adversary all the initial random corruptions immediately.
+This static random choice abstracts compromised physical machines and
+a hidden random assignment of computation roles.  We neither construct
+that assignment mechanism nor claim security for arbitrary changes to
+the compromised population.  Exposing computation state helps the adversary
+without giving the simulator additional application information, so we
+reveal all initial random corruptions immediately.
 
 Input providers and output recipients are different.  Their application
 roles are often tied to particular users, making targeted compromise
@@ -89,25 +87,28 @@ The description fixes these keys, the round circuit, and a fresh shared
 nonce.  Changing a delivery key yields an independent instance, not
 a different delivery of the same garbled labels.
 
-Within this sampling procedure, the two labels representing 0 and 1 on
-each input wire are robustly secret-shared among separate committees.
-Each share is encrypted under its member's delivery key.  These ciphertexts accompany the
-garbling in the public sample.  Members privately recover their shares,
-without any participating party having to serve as a garbler or dealer.
+For each input wire, the sampler robustly secret-shares the labels for
+0 and 1 among separate committees and encrypts each share under its
+member's delivery key.  Members recover these shares from the public
+sample without any participant serving as garbler or dealer.
 
-For a private input wire, the input provider holds two secret
-\emph{activation tokens}: random strings whose one-way-function images
-are public.  Each image identifies a committee.  The sample privately
-delivers the randomly chosen mapping from input bits to these committees
-to the provider, encrypted under its delivery key.
-The provider posts the preimage corresponding to its bit.
-This token is not a garbled label: it authorizes release of one.
-Only the first valid preimage posted for that wire before its input
-deadline counts.  The selected committee's members publish their
-decryption keys, exposing their shares and reconstructing the label.
-The hidden mapping conceals the input bit from the public committee
-choice.  Honest members of the other committee remain silent, so
-exposing the speakers does not reveal the unused label.
+Each input provider supplies a whole private string in one message.
+The sample publishes a fresh input-encryption public key for that
+provider and embeds the matching decryption key inside the garbled
+circuit.  The provider encrypts its input and signs the ciphertext for
+this particular round and sample.  Only its first valid signed
+ciphertext before the deadline counts; absence means the all-zero
+input.  Revealing the signing key afterward cannot change the accepted
+ciphertext.  Signatures authenticate the input; encryption hides it.
+
+The committees now select labels according to the \emph{public bits of
+the ciphertext}, not the hidden input.  Members of a selected committee
+publish their delivery decryption keys, exposing their shares and
+reconstructing its label.  Honest members of the other committee remain
+silent, protecting the unused label.  Although the ciphertext bits are
+public, both labels must not be released: that would permit evaluation
+on a different ciphertext.  The garbled circuit decrypts the accepted
+ciphertexts internally and then computes on the private inputs.
 
 The central step for ongoing computation is to transfer \emph{encrypted
 state}, rather than link secret labels across rounds.  Each sampled
@@ -120,8 +121,12 @@ Adaptive garbling~\cite{HemenwayEtAl2016AdaptiveGarbling} accommodates
 inputs fixed after the garbling is published, including this successor
 key and the incoming state ciphertext.  This breaks the dependence on
 shared boundary labels and lets us use universal sampling separately
-for each round.  Receiver non-committing encryption handles private
-deliveries whose recipients may later be exposed.
+for each round.  Sender non-committing encryption lets the simulator
+explain an input ciphertext's encryption randomness when its provider
+is corrupted; receiver non-committing encryption handles committee
+deliveries and output pads whose recipients may be exposed.
+Existing full NCE provides both properties, including constant
+ciphertext expansion for long inputs~\cite{BrakerskiEtAl2020ConstantNCE}.
 
 The construction is a feasibility result: its universal sampler uses
 indistinguishability obfuscation in the random-oracle model, and we make

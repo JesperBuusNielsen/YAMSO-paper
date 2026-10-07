@@ -10,8 +10,10 @@ The algorithms $(\KeyGen,\Enc,\Dec)$, polynomial message length
 $\ell=\ell(\lambda)$, and correctness requirement are as in
 Section~\ref{sec:nce}; here we require no non-committing simulation.
 We reuse the algorithm names for this separate encryption scheme.
-In the construction, registered delivery keys use RNCE, whereas
-state-transfer keys use this IND-CPA scheme.
+For state transfer we choose a scheme with deterministic decryption.
+In the construction, registered delivery keys use RNCE and sample-owned
+input-encryption keys use SNCE.  State-transfer keys use this separate
+IND-CPA scheme; they are never exposed as a party's retained state.
 
 For $b\in\bits$, the experiment $\CPAGame^b_{\mathcal A}(1^\lambda)$
 samples $(\pk,\sk)\sample\KeyGen(1^\lambda)$, gives

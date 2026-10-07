@@ -1,0 +1,49 @@
+\subsection{One-Time Signatures}
+\label{sec:signatures}
+
+Each input provider authenticates one ciphertext using an ordinary
+one-time signature.  No deniability is needed: the ciphertext remains
+fixed when the encryption simulator later explains the sender's randomness.
+
+A signature scheme has polynomial-time algorithms
+\[
+  (\sigvk,\sigsk)\sample\SigGen(1^\lambda),\qquad
+  \sig\sample\Sign(\sigsk,m),\qquad
+  \Verify(\sigvk,m,\sig)\in\{\top,\bot\}.
+\]
+Messages have a prescribed polynomial length bound; shorter messages
+are encoded and padded unambiguously.  Correctness requires an honestly
+generated signature to verify, except with negligible probability.
+Key-generation and signing coins are retained and disclosed if the
+signer is corrupted.
+
+\begin{definition}[One-time unforgeability]
+\label{def:one-time-signatures}
+Give an efficient adversary these commands:
+\begin{description}
+  \item[$\GetVerificationKey()$.]
+    Generate $(\sigvk,\sigsk)$ and return $\sigvk$.
+  \item[$\SignMessage(m)$.]
+    Record $m$ and return $\Sign(\sigsk,m)$.
+  \item[$\Forge(m^*,\sig^*)$.]
+    Terminate.  The adversary wins if
+    $\Verify(\sigvk,m^*,\sig^*)=\top$ and $m^*$ was not the
+    message submitted to $\SignMessage$.
+\end{description}
+The first two commands are accepted at most once each, in that order.
+The adversary may attempt its forgery after receiving the verification
+key, whether or not it requested a signature.  Malformed commands are
+rejected without changing state.  The scheme is one-time unforgeable
+if every efficient adversary's winning probability is negligible.
+\end{definition}
+
+Lamport's construction~\cite{Lamport1979Signatures} suffices for bounded
+messages from one-way functions.  Signing a collision-resistant digest
+instead keeps the signature length independent of the ciphertext length;
+this hash-then-sign variant additionally requires collision resistance.
+We use a one-time signature scheme as a black box, and keep the signed
+message's session, round, input-role, and sample identifiers explicit.
+
+Unforgeability protects the message before signing-key exposure.  Once
+the signed ciphertext is irrevocably recorded, the ledger fixes that
+input even if the signing key later leaks.
