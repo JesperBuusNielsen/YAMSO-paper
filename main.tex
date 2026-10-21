@@ -5,7 +5,7 @@
 \usepackage{fullpage}
 \usepackage{microtype}
 \usepackage{amsmath,amssymb,mathtools}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,linktoc=all]{hyperref}
 \usepackage[nameinlink,noabbrev]{cleveref} 
 
 \input{macros}
@@ -27,11 +27,17 @@
 \raggedbottom
 
 \input{sections/abstract}
+\clearpage
+\setcounter{tocdepth}{2}
+\pdfbookmark[0]{Contents}{contents}
+\tableofcontents
+\clearpage
 \input{sections/introduction}
 \input{sections/preliminaries}
 \input{sections/technical-overview}
 \input{sections/simulator}
 \input{sections/hybrids}
+\input{sections/ledger}
 
 \bibliographystyle{splncs04}
 \bibliography{bibliography}

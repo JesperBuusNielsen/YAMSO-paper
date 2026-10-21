@@ -1,0 +1,218 @@
+\section{The YASO Ledger Model}
+\label{sec:ledger}
+
+As discussed in Section~\ref{sec:overview-ledger}, the ledger combines a
+synchronous public record with protected local computation.  We now use
+it to define the execution of a YASO protocol.  The protocol supplies the
+algorithms; the model fixes registration, communication, and corruption.
+Our abstract model follows the role-based modeling approach of
+Gentry et al.~\cite{GentryEtAl2021YOSOFull}; see Appendix~A of the full
+version for a discussion of this choice.
+All application parties, whether input providers or output recipients,
+are subject to chosen corruption at any time.
+
+\subsection{Protocol syntax}
+\label{sec:yaso-syntax}
+
+A YASO protocol is a tuple of uniform polynomial-time algorithms
+\[
+  \Pi=(\CRS,\Gen,\Schedule,\ComputationStep,\ApplicationStep).
+\]
+The security parameter $\lambda$ and session identifier $\sid$ are
+implicit inputs where omitted.  The algorithms have the following interfaces.
+\begin{description}
+  \item[$\CRS(1^\lambda)\to\crs$.]
+    Sample the public setup string.  The setup is trusted; its generation
+    tape is not the state of a registered party.
+  \item[$\Gen(1^\lambda,\crs,\Class)\to(\pk,\sk)$.]
+    Generate public registration information $\pk$ and immutable
+    private information $\sk$.  The class is either $\Application$ or
+    $\Computation$.  We use $\pid=\pk$; $\pk$ may be a tuple of public
+    keys whose interpretation belongs to $\Pi$.
+  \item[$\Schedule(L)\to S$.]
+    Deterministically return a list $S=(\pk_1,\ldots,\pk_k)$ of distinct
+    registered public keys identifying the parties scheduled to speak.
+    The list may be empty, $S=()$, when $L$ does not permit the protocol
+    to progress.
+  \item[$\ComputationStep(\pk,\sk,L)\to m$.]
+    Compute a scheduled computation party's message
+    $m$, or $\bot$ to remain silent.
+  \item[$\ApplicationStep(\pk,\sk,L,x)\to(y,m)$.]
+    Compute an application party's private output $y$ and message $m$.
+    Either may be $\bot$.  The input $x$ is the ordered list of all
+    private inputs received so far, each paired with its arrival
+    position in $L$; initially $x=()$.
+\end{description}
+
+The ledger records clock ticks as $\Tick$ entries in $L$; their number
+is the current round $r$.  At the start of each round it fixes a snapshot
+$L_r$ and the list $S_r=\Schedule(L_r)$ of scheduled speakers.
+During the round, it executes $\ComputationStep$ for each scheduled honest
+computation party and $\ApplicationStep$ for every honest application
+party registered at round start, in an order chosen by the adversary.
+Each executes at most once
+per round, using $L_r$.  The ledger stops executing a party's step
+algorithm after it speaks.  Scheduling governs posting, not private
+output: at the tick ending the round, an application party receives its
+non-$\bot$ output whether or not it belongs to $S_r$.
+A still-silent party may be scheduled again.
+
+Each party's step algorithm uses a fixed private random tape $\rho_\pk$,
+independent of its key-generation tape and read from the beginning on
+each invocation.  Tape bits are sampled when first read and retained for
+recomputation.  The ledger keeps the key-generation tape, all sampled
+step-tape bits, inputs, and complete local computations in $\History_\pk$.
+Private outputs are sent by $\FLedger[\Pi]$ to the application party
+with identifier $\pid=\pk$.
+The flag $\Spoken_\pk$ records whether the party has posted.
+
+Public task data, including the next circuit and its input assignments,
+are determined from $L$ by the protocol.  A party can propose such data
+in its ledger message; the protocol determines which proposals to use.
+The ledger does not interpret circuit descriptions or decide their validity.
+
+\subsection{Ledger execution}
+\label{sec:ledger-execution}
+
+Fix $\Pi$, $\lambda$, $\sid$, and a computation-corruption probability
+$p\in[0,1)$.  Figure~\ref{fig:yaso-ledger} defines
+$\FLedger[\Pi]$; all commands and records are session-tagged.
+We use the discrete-clock convention of GearBox~\cite{DavidEtAl2022GearBox}
+(Section~2.1 of its full version): $\FClock$ supplies synchronized ticks,
+and a time slot between successive ticks permits polynomial-time
+computation.  Round $r$ occupies the slot starting at tick $r$, beginning
+with $r=1$.
+
+Within a round, the adversary requests individual executions through
+$\Activate(\pk)$, interleaving them with postings and admissible
+corruptions.  Computed private outputs are retained until the tick ending
+the round.  Each tick after the first triggers an internal $\EndRound$
+sweep: the ledger activates the remaining eligible honest parties,
+records missing posts, and delivers the round's private outputs before
+starting the next round.
+Registration is available at any time.  Private application inputs may
+arrive between activations.
+
+We assume perfectly synchronized clocks and private output delivery at
+the common tick.  In a model with bounded clock skew, parties would
+instead output at their respective local ticks.
+
+Corruptions refer to pids in the UC execution.  An application pid may be
+corrupted at any time.  A computation pid is corrupted independently with
+probability $p$ at registration; an initially honest computation pid may
+be corrupted only after it has spoken.  The ledger's corruption flags
+record this same status, and an allowed corruption discloses the retained
+state associated with that pid.  The ledger neither checks signatures nor
+interprets posted messages.
+
+\begin{figure}[p]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\textbf{The ledger $\FLedger[\Pi]$.}
+Public state consists of $L$; $r$ is the number of $\Tick$ entries in $L$.
+For each registered $\pk$, retain its class, $\sk_\pk$, random tape
+$\rho_\pk$, full history $\History_\pk$, cumulative input list $x_\pk$, and flags
+$\Spoken_\pk,\Corrupted_\pk$.
+After the first tick, also retain a fixed snapshot $L_r$, a list $S_r$
+of speakers, a list $E_r$ of eligible pids, and a set $A_r$ of pids
+already activated in round $r$.  Retain the round's pending private
+outputs in a list $\PendingOutputs_r$.
+
+\begin{description}
+\item[Initialization.]
+  Sample $\crs\sample\CRS(1^\lambda)$, set
+  $L=((\Setup,\sid,\crs))$ and initialize an empty registry.
+
+\item[$\Register(\Class)$ from the adversary.]
+  For a valid class, sample $(\pk,\sk_\pk)\sample
+  \Gen(1^\lambda,\crs,\Class)$.
+  Reject an already registered $\pk$; otherwise store its class and
+  $\sk_\pk$.  Initialize $\History_\pk$ with $\Gen$'s input tuple, random tape,
+  and sequence of local configurations through termination, including
+  its returned keys.  Initialize an independent private
+  step tape $\rho_\pk$, set $x_\pk=()$ and both flags false, and append
+  $(\Register,\pk,\Class)$ to $L$.
+  For class $\Computation$, independently set
+  $\Corrupted_\pk\sample\mathsf{Bernoulli}(p)$ and, if true, disclose
+  its state and history to the adversary; pid $\pk$ is then corrupted
+  from registration.  Return $\pk$ to the adversary.  For class
+  $\Application$, also output $\pk$ to pid $\pk$.
+
+\item[$\Read$ from any pid or from the adversary.]
+  Output the current $L$ to the requesting pid or adversary, respectively.
+
+\item[$\Input(u)$ from party $\pid=\pk$.]
+  If $\pk$ is an honest application party, append $(|L|,u)$ to $x_\pk$
+  and record its arrival in $\History_\pk$.
+  Ignore inputs to computation parties; route a corrupted
+  application party's inputs to the adversary.
+
+\item[Clock tick from $\FClock$.]
+  Before the first tick, ignore $\Activate$ and $\Post$ commands.
+  If $r>0$, perform the internal $\EndRound$ sweep below for round $r$.
+  Append $\Tick$ to $L$, let $r$ be its tick count, and fix $L_r=L$.
+  Compute $S_r=\Schedule(L_r)$ and discard unknown keys and parties
+  that have already spoken.
+  Let $E_r$ list all unspoken application pids and all unspoken computation
+  pids in $S_r$, in registration order.  Set $A_r=\varnothing$ and
+  $\PendingOutputs_r=()$.
+
+\item[$\Activate(\pk)$ from the adversary.]
+  Require $\pk\in E_r\setminus A_r$ and $\Corrupted_\pk=\bot$.
+  If $\Class_\pk=\Computation$, run
+  \[
+    m_\pk\gets\ComputationStep(\pk,\sk_\pk,L_r;\rho_\pk).
+  \]
+  Otherwise run
+  \[
+    (y_\pk,m_\pk)\gets\ApplicationStep(\pk,\sk_\pk,L_r,x_\pk;\rho_\pk).
+  \]
+  Append to $\History_\pk$ the round $r$, the input tuple supplied to
+  the step algorithm, the random bits read, and its sequence of local
+  configurations through termination, including its returned value.
+  Add $\pk$ to $A_r$.
+  If $\pk\in S_r$ and $m_\pk\neq\bot$, append
+  $(\Message,r,\pk,m_\pk)$ to $L$ and set $\Spoken_\pk=\top$.
+  For an application pid with $y_\pk\neq\bot$, append $(\pk,y_\pk)$
+  to $\PendingOutputs_r$.
+
+\item[$\Post(\pk,m)$ from the adversary.]
+  Require $m\in\{0,1\}^*$, $\pk\in S_r$, $\Corrupted_\pk=\top$,
+  and $\Spoken_\pk=\bot$.
+  Append $(\Message,r,\pk,m)$ to $L$ and set $\Spoken_\pk=\top$.
+
+\item[$\EndRound$ (internal sweep at a clock tick).]
+  Visit $E_r$ in registration order.  For each $\pk$ still honest and
+  not in $A_r$, perform the steps of $\Activate(\pk)$.
+  Append $(\NoMsg,r,\pk)$ to $L$ for every $\pk\in S_r$ that did not
+  post, in registration order.
+  For each $(\pk,y)\in\PendingOutputs_r$, in registration order,
+  output $y$ to pid $\pk$.
+
+\item[On corruption of pid $\pk$.]
+  The adversary may corrupt this pid if $\Class_\pk=\Application$ or
+  $\Spoken_\pk=\top$.  Set $\Corrupted_\pk=\top$ and disclose its
+  $\sk_\pk$, all sampled bits of $\rho_\pk$, $x_\pk$, its speaking
+  flag, and complete retained history to the adversary.
+  Subsequently the ledger no longer executes the pid's step algorithm.
+  The adversary can use $\Post$ to post on behalf of the corrupted pid.
+\end{description}
+Reject malformed commands and commands naming an
+unregistered key, except that $\Read$ is available
+to any pid.
+\end{minipage}}
+\caption{Execution of a YASO protocol.  Silence preserves protection for
+an initially honest computation party; only an actual posting sets
+$\Spoken$.}
+\label{fig:yaso-ledger}
+\end{figure}
+
+The parameter $p$ belongs to the execution model.  Committee sizes and
+sharing thresholds belong to the concrete protocol, not to the ledger.
+Security is stated separately by specifying a target functionality
+$\mathcal F$ and requiring a simulation of this execution in the UC
+framework.  The ongoing $\FMPC$ sketched in
+Section~\ref{sec:overview-functionality} is our intended target; neither
+it nor its circuit descriptions are additional algorithms in $\Pi$.
