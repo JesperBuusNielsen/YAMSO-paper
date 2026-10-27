@@ -48,7 +48,8 @@ its dummy-message explanation also accounts for the simulator's
 nonce-only keys.  Thus a premature query must guess a hidden uniform
 nonce.  Count every service query, including queries made internally by
 $\SimSetup$ and $\SimRO$, not only evaluations declared by the adversary.
-Apply this argument up to the first premature hit along the nonce chain.
+Apply this argument up to the first premature hit across the sequence of
+nonce releases.
 
 This stopped argument need not explain the substituted nonce packets
 after their keys are revealed.  In the main hybrids, the nonce packets

@@ -1,0 +1,217 @@
+\section{Construction}
+\label{sec:construction}
+
+\paragraph{Primitives and interactions.}
+We describe local algorithms on typed inputs as \emph{primitives} and
+the protocol's public-message rules as \emph{interactions}.
+Each interaction has a \emph{When} test and a
+\emph{What} computation, with the invoking pid as its first argument.
+The protocol specifies the interaction calls and their arguments.
+The ledger argument $L_r$ is the snapshot frozen at the start of round $r$.
+
+Whenever the ledger invokes a party's step algorithm, the party evaluates
+\emph{When} for each interaction call whose first argument is its pid.
+If none returns $\top$, its message is $\bot$.
+Otherwise, it computes \emph{What} for every call whose test returns $\top$.
+These contributions are conveyed in a single posting.
+
+For the computation interactions below, \emph{What} describes the
+meaningful contribution, such as a share.  The contribution is recoverable
+from the party's secret key and the interaction's public arguments.
+The actual message returned by $\ComputationStep$ is one copy of $\sk$;
+readers recover the contributions by recomputing \emph{What} with this
+key and the same public arguments.  Thus, saying that a member sends its
+share is shorthand for this key disclosure and recovery.  Application
+interactions specify the actual messages to include in their posting.
+
+\subsection{Common reference string}
+\label{sec:construction-crs}
+
+The ledger runs the $\CRS$ algorithm of Figure~\ref{fig:construction-crs}
+at initialization and includes its output in the initial $\Setup$ record.
+The resulting parameters $U$ are used for public sampling throughout
+the protocol.
+
+\begin{figure}[tbp]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\SubprotocolHeading{\CRS}
+\GadgetHeading{Primitives}
+\begin{description}
+  \item[$\CRS(1^\lambda)$.]
+    $\lambda$: the security parameter.
+    $\Setup^H$: the universal sampler's setup algorithm, using the
+    public random oracle $H$ (Section~\ref{sec:universal-samplers}).
+    Sample $U\sample\Setup^H(1^\lambda)$.
+    Return $\crs=(U)$, where $U$ is the public sampler parameter string.
+\end{description}
+\end{minipage}}
+\caption{Common reference string generation.}
+\label{fig:construction-crs}
+\end{figure}
+
+\subsection{Conditional release}
+\label{sec:conditional-release}
+
+We begin with the committee mechanism used in
+Section~\ref{sec:overview-gadgets}: a value is shared and the shares are
+encrypted to committee members.  When a public condition holds, the
+members reveal their decryption keys, allowing public reconstruction.
+We call this gadget \emph{encrypted sharing with conditional release}
+($\ESCR$) and use it for both nonces and garbled input labels.
+
+Figure~\ref{fig:conditional-release} defines the preparation and recovery
+algorithms and the release interaction.  In our construction,
+$\ESCR.\Prepare$ runs inside the distribution used by the universal
+sampler.  Its output supplies the public ciphertexts for the interaction.
+
+\begin{figure}[tbp]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\SubprotocolHeading{\ESCR}
+Use robust sharing with parameters $(n,t)$, secret space $\mathcal M$,
+and share space $\mathcal S$ (Section~\ref{sec:secret-sharing}), and RNCE
+with a fixed padded encoding of shares (Section~\ref{sec:nce}).
+All vectors below have $n$ indexed entries.
+\GadgetHeading{Primitives}
+\begin{description}
+  \item[$\ESCR.\Prepare(v,\boldsymbol{\pk})\to\boldsymbol c$.]
+    Input: $v\in\mathcal M$ and a vector
+    $\boldsymbol{\pk}=(\pk_1,\ldots,\pk_n)$ of RNCE public keys.
+    Output: a vector $\boldsymbol c=(c_1,\ldots,c_n)$ of ciphertexts.
+    Sample $(v_1,\ldots,v_n)\sample\Share(v)$.
+    For each $i\in[n]$, independently sample
+    $c_i\sample\Enc(\pk_i,v_i)$, using the fixed share encoding.
+    Return $\boldsymbol c=(c_1,\ldots,c_n)$.
+
+  \item[$\ESCR.\Recover(\boldsymbol c,\widehat{\boldsymbol{\sk}})\to v$.]
+    Input: $\boldsymbol c=(c_1,\ldots,c_n)\in(\bits^*)^n$ and
+    $\widehat{\boldsymbol{\sk}}=(\widehat{\sk}_1,\ldots,\widehat{\sk}_n)
+      \in(\bits^*\cup\{\bot\})^n$.
+    Output: an element of $\mathcal M\cup\{\bot\}$.
+    For each $i\in[n]$, set $\widehat v_i=\bot$ if
+    $\widehat{\sk}_i=\bot$.  Otherwise compute
+    $\Dec(\widehat{\sk}_i,c_i)$ and decode the result as a share
+    $\widehat v_i\in\mathcal S$, using $\bot$ on decryption or decoding
+    failure.
+    Return $\Reconstruct(\widehat v_1,\ldots,\widehat v_n)$.
+\end{description}
+
+\GadgetHeading{Interactions}
+\begin{description}
+  \item[$\ESCR.\Release(\pk,\sk,L_r;\boldsymbol{\pk},\boldsymbol c,B)$.]
+    $\pk,\sk$: the invoking party's RNCE public and secret keys;
+    its pid is $\pk$.
+    $L_r$: the ledger snapshot frozen at round start.
+    $\boldsymbol{\pk}$: an ordered committee of distinct registered
+    computation pids, each reserved for this use.
+    $\boldsymbol c$: the ciphertext vector for this committee.
+    $B$: a deterministic polynomial-time predicate on ledger snapshots,
+    supplied by the calling protocol.
+    \begin{description}
+      \item[When.]
+        $\pk\in\boldsymbol{\pk}$, $\pk\in\Schedule(L_r)$,
+        and $B(L_r)=1$.
+      \item[What.]
+        For the unique $i$ with $\pk=\pk_i$, decrypt $c_i$ using $\sk$
+        and return the decoded share $v_i$, or $\bot$ on decryption
+        or decoding failure.  The actual ledger posting is $\sk$.
+    \end{description}
+\end{description}
+
+\end{minipage}}
+\caption{$\ESCR$: encrypted sharing with conditional release.}
+\label{fig:conditional-release}
+\end{figure}
+
+The protocol reserves the committee and schedules its members together
+for a release round $r$ whose snapshot satisfies $B(L_r)=1$.
+At the next snapshot $L_{r+1}$, each reader builds
+$\widehat{\boldsymbol{\sk}}$ by taking $\widehat{\sk}_i$ from
+$(\Message,r,\pk_i,\widehat{\sk}_i)$, with $\bot$ if no such record
+occurs.  These values, together with the prepared ciphertext vector,
+are the inputs to $\ESCR.\Recover$.
+
+\subsection{Shared coins}
+\label{sec:shared-coins}
+
+Each nonce $Q_s$ is prepared by a separate universal sample and held by
+a fresh committee until release.  Figure~\ref{fig:shared-coins} gives
+the preparation, release, and recovery procedures.
+For fixed $U$ and $\boldsymbol{\pk}$, everyone obtains the same ciphertext
+vector.  Preparation can take place as soon as the committee has been
+assigned.
+
+\begin{figure}[tbp]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\SubprotocolHeading{\Coin}
+$\lambda$: the security parameter and coin length.
+Use $\ESCR$ from Figure~\ref{fig:conditional-release}, with secret space
+$\mathcal M$ and vectors of length $n$.
+Fix an encoding $\iota:\bits^\lambda\to\mathcal M$ with efficient
+decoding that returns $\bot$ outside its image.
+\GadgetHeading{Primitives}
+\begin{description}
+  \item[$\Coin.\Prepare(U,\boldsymbol{\pk})\to\boldsymbol c$.]
+    Input: universal-sampler parameters $U$ and a vector
+    $\boldsymbol{\pk}=(\pk_1,\ldots,\pk_n)$ of RNCE public keys.
+    Output: a vector $\boldsymbol c=(c_1,\ldots,c_n)$ of ciphertexts.
+
+    Form the description $d_{\boldsymbol{\pk}}$ of the circuit
+    \[
+      d_{\boldsymbol{\pk}}(q,\rho)
+        =\ESCR.\Prepare(\iota(q),\boldsymbol{\pk};\rho).
+    \]
+    Here $q$ consists of the first $\lambda$ bits of the circuit's random
+    input, and $\rho$ supplies the sharing and encryption coins.
+    Use a fixed deterministic encoding of this circuit template, with
+    $\boldsymbol{\pk}$ hardcoded, and the padding convention of
+    Section~\ref{sec:universal-samplers}.
+    Return the ciphertext vector
+    \[
+      \boldsymbol c\gets\Sample^H(U,d_{\boldsymbol{\pk}}).
+    \]
+    Here $H$ is the universal sampler's public random oracle.
+
+  \item[$\Coin.\Recover(\boldsymbol c,\widehat{\boldsymbol{\sk}})\to Q$.]
+    Input: $\boldsymbol c\in(\bits^*)^n$ and
+    $\widehat{\boldsymbol{\sk}}\in(\bits^*\cup\{\bot\})^n$.
+    Output: an element of $\bits^\lambda\cup\{\bot\}$.
+    Compute
+    \[
+      v\gets\ESCR.\Recover(\boldsymbol c,\widehat{\boldsymbol{\sk}}).
+    \]
+    If $v=\bot$, return $\bot$; otherwise return the decoding of $v$
+    under $\iota$.
+\end{description}
+
+\GadgetHeading{Interactions}
+\begin{description}
+  \item[$\Coin.\Release(\pk,\sk,L_r;\boldsymbol{\pk},\boldsymbol c,B)$.]
+    Arguments as for $\ESCR.\Release$.
+    Invoke the interaction
+    \[
+      \ESCR.\Release(\pk,\sk,L_r;
+        \boldsymbol{\pk},\boldsymbol c,B).
+    \]
+\end{description}
+\end{minipage}}
+\caption{$\Coin$: preparation, release, and recovery of a shared coin.}
+\label{fig:shared-coins}
+\end{figure}
+
+For coin $Q_s$, the protocol calls $\Coin.\Prepare$ with the reserved
+committee's keys and supplies the resulting ciphertext vector to
+$\Coin.\Release$.  When using $Q_s$ in a main sampling description,
+it fixes all other description fields before enabling release through
+$B$.  This test will be specified with the main sampling description.
+After the release round, readers form $\widehat{\boldsymbol{\sk}}$
+from the ledger as described for $\ESCR$ and obtain $Q_s$ by calling
+$\Coin.\Recover$.

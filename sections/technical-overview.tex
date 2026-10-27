@@ -185,8 +185,8 @@ the components before assembling the protocol.
     Everyone computes the same $\Sample(U,d)$: a garbled circuit and
     encrypted information for its participants.  The distribution returns
     neither its random tape nor the garbler's encoding key, so no
-    participating machine holds all the generated secrets.  After a
-    nonce-only bootstrap, we use one main sample per I/O round.
+    participating machine holds all the generated secrets.  Each I/O
+    round uses a nonce-only sample and a main sample.
 
     Including delivery keys in $d$ is essential.  Replacing one of them
     changes the description and, in the universal sampler's ideal
@@ -213,11 +213,12 @@ the components before assembling the protocol.
     $Q_s$.  Until release, the hidden nonce protects it against advance
     sampling queries.  The adversary's other queries remain unrestricted.
 
-    The sample for round $s$ draws an independent $Q_{s+1}$ and encrypts
-    its shares to a committee reserved in $d_s$.  These packets are
-    available without evaluating the garbling or knowing the next
-    application circuit and recipients.  A nonce-only bootstrap supplies
-    shares of $Q_1$.  Thus no speaking dealer holds the entire nonce,
+    Each $Q_s$ is prepared by a separate nonce-only universal sample.
+    Its description fixes the ordered committee keys; its distribution
+    draws $Q_s$, shares it, and returns the encrypted shares.
+    This preparation can take place as soon as the committee is assigned,
+    before the application circuit and recipients are known.
+    The same procedure supplies every nonce, including $Q_1$,
     and all committees may use previously registered keys.
 
   \item[Signed encrypted inputs]
@@ -367,32 +368,32 @@ encrypt its new state to a successor whose public key is already available,
 without requiring either round to know all future circuits or participants.
 
 \begin{description}
-  \item[Bootstrap the first nonce]
-    The protocol's fixed allocation rule reserves a nonce committee from
-    unused registered computation parties.  Everyone derives a nonce-only
-    universal sample whose distribution chooses $Q_1$, shares it, and
-    encrypts the shares to that committee.  The committee remains silent
-    until the first round's other description fields have been fixed.
+  \item[Prepare a nonce for each round]
+    For each I/O round $s$, the protocol's fixed allocation rule reserves
+    a fresh nonce committee from unused registered computation parties.
+    Everyone derives its nonce-only universal sample, whose distribution
+    chooses $Q_s$, shares it, and encrypts the shares to that committee.
+    The committee remains silent until round $s$'s other description
+    fields have been fixed.  These preparations may take place in advance.
 
   \item[Prepare the first round]
     Fix the first application circuit, its input groups and lengths,
     output-wire assignments, registered signing and delivery keys, and
     disjoint label committees for all augmented-circuit input bits.
-    Also reserve the committee for $Q_2$.  Use unused registered parties,
+    Use unused registered parties,
     waiting for more registrations only if too few are available.
     Once these fields are frozen on the ledger, release $Q_1$ as described
     above and form $d_1$.  Everyone locally derives the same main sample:
     the garbled circuit, its state-reception public key, its bundle of
-    input-encryption public keys, the participants' encrypted information,
-    and the encrypted shares of $Q_2$.
+    input-encryption public keys, and the participants' encrypted information.
     No party has to post this sample.  The first circuit starts with the
     prescribed empty state, rather than decrypting a preceding ciphertext.
 
   \item[Prepare the successor]
-    Before evaluating round $s$, fix the other description fields for
-    round $s+1$, including its unused delivery roles and the nonce
-    committee for round $s+2$.  The committee already holding shares of
-    $Q_{s+1}$ now releases it, and everyone derives $\Sample(U,d_{s+1})$.
+    Before evaluating round $s$, prepare $Q_{s+1}$ as above and fix the
+    other description fields for round $s+1$, including its unused
+    delivery roles.  The committee holding shares of $Q_{s+1}$ now
+    releases it, and everyone derives $\Sample(U,d_{s+1})$.
     This makes $\statepk_{s+1}$ available
     as a public input to round $s$.  Preparing the successor requires its
     application circuit, public input lengths, and registered role keys,

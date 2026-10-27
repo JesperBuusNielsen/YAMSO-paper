@@ -39,19 +39,22 @@ implicit inputs where omitted.  The algorithms have the following interfaces.
     $m$, or $\bot$ to remain silent.
   \item[$\ApplicationStep(\pk,\sk,L,x)\to(y,m)$.]
     Compute an application party's private output $y$ and message $m$.
-    Either may be $\bot$.  The input $x$ is the ordered list of all
-    private inputs received so far, each paired with its arrival
-    position in $L$; initially $x=()$.
+    Either may be $\bot$.  The input $x$ is the party's ordered
+    cumulative private input list, frozen at the start of the round.
+    Each entry pairs an input with its arrival position in $L$.
 \end{description}
 
 The ledger records clock ticks as $\Tick$ entries in $L$; their number
 is the current round $r$.  At the start of each round it fixes a snapshot
-$L_r$ and the list $S_r=\Schedule(L_r)$ of scheduled speakers.
+$L_r$, the list $S_r=\Schedule(L_r)$ of scheduled speakers, and an input
+snapshot $x_{\pk,r}$ for each registered application party.
 During the round, it executes $\ComputationStep$ for each scheduled honest
 computation party and $\ApplicationStep$ for every honest application
 party registered at round start, in an order chosen by the adversary.
-Each executes at most once
-per round, using $L_r$.  The ledger stops executing a party's step
+Each executes at most once per round, using $L_r$ and, for application
+parties, $x_{\pk,r}$.  Registrations, postings, and inputs received during
+the round enter the snapshots for the following round.
+The ledger stops executing a party's step
 algorithm after it speaks.  Scheduling governs posting, not private
 output: at the tick ending the round, an application party receives its
 non-$\bot$ output whether or not it belongs to $S_r$.
@@ -91,7 +94,8 @@ sweep: the ledger activates the remaining eligible honest parties,
 records missing posts, and delivers the round's private outputs before
 starting the next round.
 Registration is available at any time.  Private application inputs may
-arrive between activations.
+arrive between activations and are included in the next round's input
+snapshots.
 
 We assume perfectly synchronized clocks and private output delivery at
 the common tick.  In a model with bounded clock skew, parties would
@@ -115,10 +119,11 @@ Public state consists of $L$; $r$ is the number of $\Tick$ entries in $L$.
 For each registered $\pk$, retain its class, $\sk_\pk$, random tape
 $\rho_\pk$, full history $\History_\pk$, cumulative input list $x_\pk$, and flags
 $\Spoken_\pk,\Corrupted_\pk$.
-After the first tick, also retain a fixed snapshot $L_r$, a list $S_r$
-of speakers, a list $E_r$ of eligible pids, and a set $A_r$ of pids
-already activated in round $r$.  Retain the round's pending private
-outputs in a list $\PendingOutputs_r$.
+After the first tick, also retain the fixed snapshot $L_r$ and input
+snapshots $x_{\pk,r}$ for application pids registered at round start,
+a list $S_r$ of speakers, a list $E_r$ of eligible pids, and a set $A_r$
+of pids already activated in round $r$.  Retain the round's pending
+private outputs in a list $\PendingOutputs_r$.
 
 \begin{description}
 \item[Initialization.]
@@ -153,6 +158,7 @@ outputs in a list $\PendingOutputs_r$.
   Before the first tick, ignore $\Activate$ and $\Post$ commands.
   If $r>0$, perform the internal $\EndRound$ sweep below for round $r$.
   Append $\Tick$ to $L$, let $r$ be its tick count, and fix $L_r=L$.
+  For each registered application pid $\pk$, fix $x_{\pk,r}=x_\pk$.
   Compute $S_r=\Schedule(L_r)$ and discard unknown keys and parties
   that have already spoken.
   Let $E_r$ list all unspoken application pids and all unspoken computation
@@ -167,7 +173,7 @@ outputs in a list $\PendingOutputs_r$.
   \]
   Otherwise run
   \[
-    (y_\pk,m_\pk)\gets\ApplicationStep(\pk,\sk_\pk,L_r,x_\pk;\rho_\pk).
+    (y_\pk,m_\pk)\gets\ApplicationStep(\pk,\sk_\pk,L_r,x_{\pk,r};\rho_\pk).
   \]
   Append to $\History_\pk$ the round $r$, the input tuple supplied to
   the step algorithm, the random bits read, and its sequence of local
