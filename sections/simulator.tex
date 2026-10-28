@@ -64,13 +64,13 @@ checks pass.
     the fixed key, tape, and retained history whenever required.
 
   \item[Public sampling.]
-    Maintain a table indexed by exact distribution descriptions.
-    A service $\SimSample(d)$ returns the stored sample if one exists.
-    Otherwise, for a designated main-round description, it prepares the
-    simulated sample described below.  For any other description,
-    including every nonce-only description, it samples fresh uniform coins
-    $r_d$ and computes $d(r_d)$ honestly.  It stores the result before
-    returning it.
+    Maintain a table indexed by exact distribution-circuit descriptions
+    $\DistCircuit$.  A service $\SimSample(\DistCircuit)$ returns the
+    stored sample if one exists.  For a designated $\DistCircuit_s$,
+    it prepares the simulated $\SampledCircuit_s$ described below.
+    For any other description, including every nonce-only description,
+    it samples fresh uniform coins $\rho$ and computes
+    $\DistCircuit(\rho)$ honestly.  It stores the result before returning it.
 
     Use this service as the oracle for the universal sampler's simulator:
     \[
@@ -91,21 +91,21 @@ checks pass.
     Once the protocol freezes the next round's circuit, input lengths,
     assignments, signature verification keys, delivery keys, and committee
     rosters, designate its exact description
-    $d_s$, including its already-fixed nonce $Q_s$, in the sampling service.
+    $\DistCircuit_s$, including its already-fixed nonce $Q_s$, in the sampling service.
     The simulator knows this nonce before its public release.  It obtains
     $Q_s$ by decrypting enough packets from its nonce-only sample with
     the retained nonce-committee keys and reconstructing.  This does not
     require the ideal sample source to reveal a sampling tape.
 
-    If $d_s$ was already answered as an ordinary description, abort;
+    If $\DistCircuit_s$ was already answered as an ordinary description, abort;
     never replace an earlier table entry.  Otherwise reserve that entry
-    for the simulated main-round sample.  Simulate the nonce committee's
+    for the simulated $\SampledCircuit_s$.  Simulate the nonce committee's
     scheduled key disclosures and subsequent corruptions using its
     already-fixed keys and tapes.  Robust reconstruction releases the
     one pre-existing $Q_s$, even if corrupt members withhold or alter
     their contributions.  The other fields remain fixed after release.
 
-  \item[Prepare a main-round sample.]
+  \item[Prepare $\SampledCircuit_s$.]
     Generate a genuine state-transfer pair
     $(\statepk_s,\statesk_s)$.  For each input provider $a$, run
     \[
@@ -117,16 +117,16 @@ checks pass.
     prescribed input length.  It is separate from all registered
     delivery keys and from the state-transfer pair.
 
-    Let $C_s$ be the augmented circuit from
-    Section~\ref{sec:overview-construction}, with public inputs comprising
+    Let $\RoundCircuit_s$ be the augmented circuit of
+    Figure~\ref{fig:round-circuit}, with public inputs comprising
     the input-ciphertext records, preceding state ciphertext, and
     successor public key.  Compute
     \[
       (\GC_s,\SimState_s)
-        \sample\SimGarble(1^\lambda,\Topo(C_s)).
+        \sample\SimGarble(1^\lambda,\Topo(\RoundCircuit_s)).
     \]
-    Include $\statepk_s$ and $\GC_s$ in the public sample.
-    The topology of $C_s$ is independent of the hardcoded decryption keys, pads,
+    Include $\statepk_s$ and $\GC_s$ in $\SampledCircuit_s$.
+    The topology of $\RoundCircuit_s$ is independent of the hardcoded decryption keys, pads,
     and random tapes, so none need be assigned to prepare this simulated
     garbling.  In particular, no input-decryption secret keys are needed
     for the simulated public keys.
@@ -146,7 +146,7 @@ checks pass.
     ciphertext $\widetilde c^{\mathsf{in}}_{s,a}$ and honestly sign
     the record
     \[
-      \InputRecord(\sid,s,a,d_s,
+      \InputRecord(\sid,s,a,\DistCircuit_s,
          \widetilde c^{\mathsf{in}}_{s,a}).
     \]
     Post the ciphertext and signature atomically.  Save the signing

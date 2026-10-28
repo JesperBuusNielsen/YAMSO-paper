@@ -39,7 +39,7 @@ below need not extract a plaintext from an adversarial ciphertext.
 
 \paragraph{Nonce freshness.}
 First establish that the service has not already answered the eventual
-description $d_s$ before its non-nonce fields are frozen.  Work in an
+description $\DistCircuit_s$ before its non-nonce fields are frozen.  Work in an
 auxiliary experiment stopped before the first honest nonce-committee
 key is disclosed.  Message privacy of the nonce-share encryption hides
 the honest shares, while threshold privacy hides $Q_s$ from the corrupt
@@ -129,24 +129,24 @@ then transfers through the indistinguishable hybrids below.
 
     For input encryption with randomized decryption, also sample an
     independent tape $\delta_{s,a}$ for each provider at round preparation
-    and hardcode it in $C_s$.  Its input decryption is then deterministic
+    and hardcode it in $\RoundCircuit_s$.  Its input decryption is then deterministic
     as required by the garbling definition.  The simulated garbling
     reveals nothing about these tapes, and honest ciphertext generation
     does not depend on them.  Encryption correctness therefore bounds
     the probability that an honestly encrypted input fails to decrypt;
     retain an abort on this negligible event in subsequent comparisons.
     No correctness assumption for arbitrary ciphertexts or exceptional
-    fixed encryption coins is used.  Each augmented circuit $C_s$ is now
+    fixed encryption coins is used.  Each augmented circuit $\RoundCircuit_s$ is now
     fully specified when its garbling is requested.
 
   \item[$H_4$: restore the garblings.]
     Replace the simulated garblings by real garblings, one round at a
     time, leaving all honest label-delivery ciphertexts simulated.
     For the target round $s$, generate its genuine state-transfer and
-    input-encryption keys.  Construct $C_s$ with $\statesk_s$, all
+    input-encryption keys.  Construct $\RoundCircuit_s$ with $\statesk_s$, all
     $\inputsk_{s,a}$, its output pads, and its encryption and decryption
     tapes hardcoded.  At sample preparation, call
-    $\GarbleCircuit(C_s)$.  Once the complete input is fixed, call
+    $\GarbleCircuit(\RoundCircuit_s)$.  Once the complete input is fixed, call
     $\EncodeInput(\xi_s)$, where $\xi_s$ consists entirely of public
     bits: the accepted input-ciphertext records or default records,
     incoming state ciphertext, and successor public key.
@@ -155,7 +155,7 @@ then transfers through the indistinguishable hybrids below.
     agree with $\FMPC$.  Since all state ciphertexts also carry the
     correct states, correctness gives
     \[
-      C_s(\xi_s)=
+      \RoundCircuit_s(\xi_s)=
       \bigl(y_s\oplus r_s,\,
         \Enc(\statepk_{s+1},\sigma_s;\rho_s)\bigr),
     \]
@@ -214,8 +214,8 @@ then transfers through the indistinguishable hybrids below.
     must be called.
 
   \item[$H_7$: restore public universal sampling.]
-    The service now generates an honest sample $d(r_d)$ with independent
-    uniform randomness for each new description.  Remove the early-query,
+    The service now generates an honest sample $\DistCircuit(\rho)$,
+    using independent uniform coins $\rho$ for each new description.  Remove the early-query,
     authentication, and correctness aborts at negligible cost, before
     replacing access to this internally generated source.  Apply
     Definition~\ref{def:adaptive-universal-sampler} to replace

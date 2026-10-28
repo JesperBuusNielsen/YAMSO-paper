@@ -73,10 +73,11 @@ the task.  We use the UC framework to state this ideal computation and
 the ledger assumption.
 
 Our construction uses an independent garbling for each I/O round.
-A \emph{universal sampler} has public parameters $U$.  Given a
-description $d$ of a sampling procedure, anyone can deterministically
-compute the same sample $\Sample(U,d)$, as though $d$ had been run
-once with private random coins.  The coins are not separately revealed,
+A \emph{universal sampler} has public parameters $U$.  Given the
+description of a distribution circuit $\DistCircuit$, anyone can
+deterministically compute the same sample $\Sample(U,\DistCircuit)$,
+as though the circuit had been run once with private random coins.
+The coins are not separately revealed,
 and different descriptions behave like independent runs.
 We use the adaptive universal sampler of Hofheinz et
 al.~\cite{HofheinzEtAl2016UniversalSamplers} to generate a garbling

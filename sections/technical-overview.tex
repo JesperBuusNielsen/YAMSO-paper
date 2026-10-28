@@ -178,17 +178,22 @@ the components before assembling the protocol.
 \begin{description}
   \item[Public sampling without a private garbler]
     For our protocol, $\crs$ contains universal-sampler parameters $U$.
-    A public protocol rule determines an exact distribution description
-    $d$ from the round circuit, input lengths and assignments, registered
-    signing and delivery keys, committee rosters, and a nonce $Q$.
-    All fields other than $Q$ are fixed on the ledger before its release.
-    Everyone computes the same $\Sample(U,d)$: a garbled circuit and
-    encrypted information for its participants.  The distribution returns
+    For I/O round $s$, a public protocol rule determines the exact
+    description $\DistCircuit_s$ of a distribution circuit from the
+    round circuit, input lengths and assignments, registered signing
+    and delivery keys, committee rosters, and a nonce $Q_s$.
+    All fields other than $Q_s$ are fixed on the ledger before its release.
+    Everyone computes the same sample bundle
+    \[
+      \SampledCircuit_s=\Sample(U,\DistCircuit_s),
+    \]
+    containing the garbled circuit, its public keys, and encrypted
+    information for its participants.  The distribution circuit returns
     neither its random tape nor the garbler's encoding key, so no
     participating machine holds all the generated secrets.  Each I/O
-    round uses a nonce-only sample and a main sample.
+    round uses a nonce sample and a circuit sample.
 
-    Including delivery keys in $d$ is essential.  Replacing one of them
+    Including delivery keys in $\DistCircuit_s$ is essential.  Replacing one of them
     changes the description and, in the universal sampler's ideal
     experiment, gives a sample generated with independent randomness.
     Honest parties supply inputs only to the instance specified by
@@ -200,7 +205,7 @@ the components before assembling the protocol.
     and held as a robust secret sharing by a dedicated committee.
     Its members have no other role and receive encrypted share packets,
     just as for label committees below.  They speak only after all other
-    fields of $d_s$ have been fixed.
+    fields of $\DistCircuit_s$ have been fixed.
 
     In one synchronous release round, honest members publish their
     decryption keys.  At the deadline, everyone reconstructs $Q_s$ from
@@ -209,7 +214,7 @@ the components before assembling the protocol.
     In particular, corrupt members cannot steer the nonce by choosing
     their contributions after seeing honest ones.
 
-    The description $d_s$ is a fixed encoding of the agreed fields and
+    The description $\DistCircuit_s$ is a fixed encoding of the agreed fields and
     $Q_s$.  Until release, the hidden nonce protects it against advance
     sampling queries.  The adversary's other queries remain unrestricted.
 
@@ -218,8 +223,7 @@ the components before assembling the protocol.
     draws $Q_s$, shares it, and returns the encrypted shares.
     This preparation can take place as soon as the committee is assigned,
     before the application circuit and recipients are known.
-    The same procedure supplies every nonce, including $Q_1$,
-    and all committees may use previously registered keys.
+    These committees may use previously registered keys.
 
   \item[Signed encrypted inputs]
     For each input provider $a$ in round $s$, the sampling procedure
@@ -234,9 +238,9 @@ the components before assembling the protocol.
       c^{\mathsf{in}}_{s,a}\sample\Enc(\inputpk_{s,a},x_a).
     \]
     It signs an unambiguous encoding
-    $\InputRecord(\sid,s,a,d_s,c^{\mathsf{in}}_{s,a})$ and posts
+    $\InputRecord(\sid,s,a,\DistCircuit_s,c^{\mathsf{in}}_{s,a})$ and posts
     the ciphertext and signature together.  Here $\sid$ identifies the
-    protocol session, $s$ the round, $a$ the input group, and $d_s$ the
+    protocol session, $s$ the round, $a$ the input group, and $\DistCircuit_s$ the
     exact sample description.  All parties verify the signature under
     the provider's registered $\sigvk$; signatures are not themselves
     garbled inputs.
@@ -383,7 +387,8 @@ without requiring either round to know all future circuits or participants.
     Use unused registered parties,
     waiting for more registrations only if too few are available.
     Once these fields are frozen on the ledger, release $Q_1$ as described
-    above and form $d_1$.  Everyone locally derives the same main sample:
+    above and form $\DistCircuit_1$.  Everyone locally derives
+    $\SampledCircuit_1$, comprising
     the garbled circuit, its state-reception public key, its bundle of
     input-encryption public keys, and the participants' encrypted information.
     No party has to post this sample.  The first circuit starts with the
@@ -393,7 +398,7 @@ without requiring either round to know all future circuits or participants.
     Before evaluating round $s$, prepare $Q_{s+1}$ as above and fix the
     other description fields for round $s+1$, including its unused
     delivery roles.  The committee holding shares of $Q_{s+1}$ now
-    releases it, and everyone derives $\Sample(U,d_{s+1})$.
+    releases it, and everyone derives $\SampledCircuit_{s+1}$.
     This makes $\statepk_{s+1}$ available
     as a public input to round $s$.  Preparing the successor requires its
     application circuit, public input lengths, and registered role keys,
