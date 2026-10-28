@@ -86,6 +86,8 @@ and a time slot between successive ticks permits polynomial-time
 computation.  Round $r$ occupies the slot starting at tick $r$, beginning
 with $r=1$.
 
+We let the adversary initiate registration for both computation and application parties via $\Register(\Class)$. An honest party cannot register itself by generating and posting its public key, since posting would count as its protocol message and prevent it from speaking again. The ledger cannot generate the keys and privately deliver the secret key, as outputs of an ideal functionality are visible to the environment. Instead, the ledger generates and retains the secret keys, with the public algorithms hardcoded into its execution to compute the honest party's outputs from the secret state and current ledger snapshot. Since registration requires only a trigger and the adversary controls scheduling, letting the adversary initiate registration suffices.
+
 Within a round, the adversary requests individual executions through
 $\Activate(\pk)$, interleaving them with postings and admissible
 corruptions.  Computed private outputs are retained until the tick ending
