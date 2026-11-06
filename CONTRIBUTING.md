@@ -2,9 +2,10 @@
 
 - Use one `.tex` file per substantial section.
 - Coordinate ownership of a section during large edits.
-- In Overleaf, use **Integrations -> GitHub -> Pull GitHub changes** before
-  editing and **Push Overleaf changes to GitHub** after the edit is complete.
-- Locally, pull `main` before editing and again immediately before pushing.
+- Overleaf collaborators may edit directly in the shared project. Local
+  integration reads both its direct Git remote and the GitHub remote.
+- Use `pull-sync` before local editing and `full-sync` to publish the merged
+  paper to both places; see [OVERLEAF.md](OVERLEAF.md).
 - Resolve overlapping changes locally and compile the merged result.
 - Do not edit the same paragraph concurrently in Overleaf and locally.
 - GitHub pulls can displace Overleaf comments and tracked changes. Resolve them
