@@ -29,10 +29,10 @@ implicit inputs where omitted.  The algorithms have the following interfaces.
     private information $\sk$.  The class is either $\Application$ or
     $\Computation$.  We use $\pid=\pk$; $\pk$ may be a tuple of public
     keys whose interpretation belongs to $\Pi$.
-  \item[$\Schedule(L)\to S$.]
-    Deterministically return a list $S=(\pk_1,\ldots,\pk_k)$ of distinct
+  \item[$\Schedule(L)\to\MaySpeak$.]
+    Deterministically return a list $\MaySpeak=(\pk_1,\ldots,\pk_k)$ of distinct
     registered public keys identifying the parties scheduled to speak.
-    The list may be empty, $S=()$, when $L$ does not permit the protocol
+    The list may be empty, $\MaySpeak=()$, when $L$ does not permit the protocol
     to progress.
   \item[$\ComputationStep(\pk,\sk,L)\to m$.]
     Compute a scheduled computation party's message
@@ -46,7 +46,7 @@ implicit inputs where omitted.  The algorithms have the following interfaces.
 
 The ledger records clock ticks as $\Tick$ entries in $L$; their number
 is the current round $r$.  At the start of each round it fixes a snapshot
-$L_r$, the list $S_r=\Schedule(L_r)$ of scheduled speakers, and an input
+$L_r$, the list $\MaySpeak_r=\Schedule(L_r)$ of scheduled speakers, and an input
 snapshot $x_{\pk,r}$ for each registered application party.
 During the round, it executes $\ComputationStep$ for each scheduled honest
 computation party and $\ApplicationStep$ for every honest application
@@ -57,8 +57,19 @@ the round enter the snapshots for the following round.
 The ledger stops executing a party's step
 algorithm after it speaks.  Scheduling governs posting, not private
 output: at the tick ending the round, an application party receives its
-non-$\bot$ output whether or not it belongs to $S_r$.
+non-$\bot$ output whether or not it belongs to $\MaySpeak_r$.
 A still-silent party may be scheduled again.
+
+The ledger also fixes $\MustRun_r$, containing the pids in
+$\MaySpeak_r$ and all unspoken application pids registered at round start.
+These lists differ because a private output may require local computation
+without a posting: an unscheduled output recipient belongs to $\MustRun_r$
+but not $\MaySpeak_r$.
+The set $\HasRun_r$ records which parties have already executed their step
+algorithm in the round, including executions that return no message.
+At $\EndRound$, the ledger runs the remaining honest members of
+$\MustRun_r$, so withholding an activation cannot suppress an honest
+recipient's private output.
 
 Each party's step algorithm uses a fixed private random tape $\rho_\pk$,
 independent of its key-generation tape and read from the beginning on
@@ -67,7 +78,7 @@ recomputation.  The ledger keeps the key-generation tape, all sampled
 step-tape bits, inputs, and complete local computations in $\History_\pk$.
 Private outputs are sent by $\FLedger[\Pi]$ to the application party
 with identifier $\pid=\pk$.
-The flag $\Spoken_\pk$ records whether the party has posted.
+The flag $\HasSpoken_\pk$ records whether the party has posted.
 
 Public task data, including the next circuit and its input assignments,
 are determined from $L$ by the protocol.  A party can propose such data
@@ -120,12 +131,13 @@ interprets posted messages.
 Public state consists of $L$; $r$ is the number of $\Tick$ entries in $L$.
 For each registered $\pk$, retain its class, $\sk_\pk$, random tape
 $\rho_\pk$, full history $\History_\pk$, cumulative input list $x_\pk$, and flags
-$\Spoken_\pk,\Corrupted_\pk$.
+$\HasSpoken_\pk,\Corrupted_\pk$.
 After the first tick, also retain the fixed snapshot $L_r$ and input
 snapshots $x_{\pk,r}$ for application pids registered at round start,
-a list $S_r$ of speakers, a list $E_r$ of eligible pids, and a set $A_r$
-of pids already activated in round $r$.  Retain the round's pending
-private outputs in a list $\PendingOutputs_r$.
+a list $\MaySpeak_r$ of permitted speakers, a list $\MustRun_r$ of
+eligible pids, and a set $\HasRun_r$ of pids whose step algorithm has
+already executed in round $r$.  Retain the round's pending private outputs
+in a list $\PendingOutputs_r$.
 
 \begin{description}
 \item[Initialization.]
@@ -161,14 +173,14 @@ private outputs in a list $\PendingOutputs_r$.
   If $r>0$, perform the internal $\EndRound$ sweep below for round $r$.
   Append $\Tick$ to $L$, let $r$ be its tick count, and fix $L_r=L$.
   For each registered application pid $\pk$, fix $x_{\pk,r}=x_\pk$.
-  Compute $S_r=\Schedule(L_r)$ and discard unknown keys and parties
-  that have already spoken.
-  Let $E_r$ list all unspoken application pids and all unspoken computation
-  pids in $S_r$, in registration order.  Set $A_r=\varnothing$ and
-  $\PendingOutputs_r=()$.
+  Compute $\MaySpeak_r=\Schedule(L_r)$ and remove every $\pk$ with
+  $\HasSpoken_\pk=\top$.
+  Let $\MustRun_r$ list the pids in $\MaySpeak_r$ together with all
+  unspoken application pids, without repetition and in registration order.
+  Set $\HasRun_r=\varnothing$ and $\PendingOutputs_r=()$.
 
 \item[$\Activate(\pk)$ from the adversary.]
-  Require $\pk\in E_r\setminus A_r$ and $\Corrupted_\pk=\bot$.
+  Require $\pk\in \MustRun_r\setminus \HasRun_r$ and $\Corrupted_\pk=\bot$.
   If $\Class_\pk=\Computation$, run
   \[
     m_\pk\gets\ComputationStep(\pk,\sk_\pk,L_r;\rho_\pk).
@@ -180,28 +192,28 @@ private outputs in a list $\PendingOutputs_r$.
   Append to $\History_\pk$ the round $r$, the input tuple supplied to
   the step algorithm, the random bits read, and its sequence of local
   configurations through termination, including its returned value.
-  Add $\pk$ to $A_r$.
-  If $\pk\in S_r$ and $m_\pk\neq\bot$, append
-  $(\Message,r,\pk,m_\pk)$ to $L$ and set $\Spoken_\pk=\top$.
+  Add $\pk$ to $\HasRun_r$.
+  If $\pk\in \MaySpeak_r$ and $m_\pk\neq\bot$, append
+  $(\Message,r,\pk,m_\pk)$ to $L$ and set $\HasSpoken_\pk=\top$.
   For an application pid with $y_\pk\neq\bot$, append $(\pk,y_\pk)$
   to $\PendingOutputs_r$.
 
 \item[$\Post(\pk,m)$ from the adversary.]
-  Require $m\in\{0,1\}^*$, $\pk\in S_r$, $\Corrupted_\pk=\top$,
-  and $\Spoken_\pk=\bot$.
-  Append $(\Message,r,\pk,m)$ to $L$ and set $\Spoken_\pk=\top$.
+  Require $m\in\{0,1\}^*$, $\pk\in \MaySpeak_r$, $\Corrupted_\pk=\top$,
+  and $\HasSpoken_\pk=\bot$.
+  Append $(\Message,r,\pk,m)$ to $L$ and set $\HasSpoken_\pk=\top$.
 
 \item[$\EndRound$ (internal sweep at a clock tick).]
-  Visit $E_r$ in registration order.  For each $\pk$ still honest and
-  not in $A_r$, perform the steps of $\Activate(\pk)$.
-  Append $(\NoMsg,r,\pk)$ to $L$ for every $\pk\in S_r$ that did not
+  Visit $\MustRun_r$ in registration order.  For each $\pk$ still honest and
+  not in $\HasRun_r$, perform the steps of $\Activate(\pk)$.
+  Append $(\NoMsg,r,\pk)$ to $L$ for every $\pk\in \MaySpeak_r$ that did not
   post, in registration order.
   For each $(\pk,y)\in\PendingOutputs_r$, in registration order,
   output $y$ to pid $\pk$.
 
 \item[On corruption of pid $\pk$.]
   The adversary may corrupt this pid if $\Class_\pk=\Application$ or
-  $\Spoken_\pk=\top$.  Set $\Corrupted_\pk=\top$ and disclose its
+  $\HasSpoken_\pk=\top$.  Set $\Corrupted_\pk=\top$ and disclose its
   $\sk_\pk$, all sampled bits of $\rho_\pk$, $x_\pk$, its speaking
   flag, and complete retained history to the adversary.
   Subsequently the ledger no longer executes the pid's step algorithm.
@@ -213,7 +225,7 @@ to any pid.
 \end{minipage}}
 \caption{Execution of a YASO protocol.  Silence preserves protection for
 an initially honest computation party; only an actual posting sets
-$\Spoken$.}
+$\HasSpoken$.}
 \label{fig:yaso-ledger}
 \end{figure}
 
