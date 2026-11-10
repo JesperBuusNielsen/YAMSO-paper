@@ -110,6 +110,9 @@ Registration is available at any time.  Private application inputs may
 arrive between activations and are included in the next round's input
 snapshots.
 
+A party for which a 
+$\NoMsg$  record is appended may be scheduled again in a subsequent round, as it has not previously spoken. This is deliberate and results in a stronger model.
+
 We assume perfectly synchronized clocks and private output delivery at
 the common tick.  In a model with bounded clock skew, parties would
 instead output at their respective local ticks.
