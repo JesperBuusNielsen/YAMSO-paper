@@ -18,8 +18,9 @@ A YASO protocol is a tuple of uniform polynomial-time algorithms
 \[
   \Pi=(\CRS,\Gen,\Schedule,\ComputationStep,\ApplicationStep).
 \]
-The security parameter $\lambda$ and session identifier $\sid$ are
-implicit inputs where omitted.  The algorithms have the following interfaces.
+The security parameter $\lambda$, session identifier $\sid$, and public
+oracle access specified by the protocol are implicit where omitted.
+The algorithms have the following interfaces.
 \begin{description}
   \item[$\CRS(1^\lambda)\to\crs$.]
     Sample the public setup string.  The setup is trusted; its generation
@@ -29,11 +30,16 @@ implicit inputs where omitted.  The algorithms have the following interfaces.
     private information $\sk$.  The class is either $\Application$ or
     $\Computation$.  We use $\pid=\pk$; $\pk$ may be a tuple of public
     keys whose interpretation belongs to $\Pi$.
-  \item[$\Schedule(L)\to\MaySpeak$.]
-    Deterministically return a list $\MaySpeak=(\pk_1,\ldots,\pk_k)$ of distinct
-    registered public keys identifying the parties scheduled to speak.
-    The list may be empty, $\MaySpeak=()$, when $L$ does not permit the protocol
-    to progress.
+  \item[$\Schedule(L)\to(\Roles,\MaySpeak)$.]
+    Compute a public record $\Roles$ of named role
+    assignments to registered pids, in a format specified by $\Pi$, and
+    a list $\MaySpeak=(\pk_1,\ldots,\pk_k)$ of distinct registered public keys
+    identifying the parties scheduled to speak.  The list may be empty,
+    $\MaySpeak=()$, when $L$ does not permit the protocol to progress.
+    The step algorithms recover the assignments by recomputing
+    $\Schedule(L)$.  Over any efficient execution under the protocol's
+    stated assumptions, independent evaluations on the same snapshot
+    must agree except with negligible probability.
   \item[$\ComputationStep(\pk,\sk,L)\to m$.]
     Compute a scheduled computation party's message
     $m$, or $\bot$ to remain silent.
@@ -46,7 +52,7 @@ implicit inputs where omitted.  The algorithms have the following interfaces.
 
 The ledger records clock ticks as $\Tick$ entries in $L$; their number
 is the current round $r$.  At the start of each round it fixes a snapshot
-$L_r$, the list $\MaySpeak_r=\Schedule(L_r)$ of scheduled speakers, and an input
+$L_r$, computes $(\Roles_r,\MaySpeak_r)=\Schedule(L_r)$, and fixes an input
 snapshot $x_{\pk,r}$ for each registered application party.
 During the round, it executes $\ComputationStep$ for each scheduled honest
 computation party and $\ApplicationStep$ for every honest application
@@ -58,7 +64,9 @@ The ledger stops executing a party's step
 algorithm after it speaks.  Scheduling governs posting, not private
 output: at the tick ending the round, an application party receives its
 non-$\bot$ output whether or not it belongs to $\MaySpeak_r$.
-A still-silent party may be scheduled again.
+A still-silent party may be scheduled again.  An input provider can
+therefore receive its circuit and assignment before its input-posting
+round.
 
 The ledger also fixes $\MustRun_r$, containing the pids in
 $\MaySpeak_r$ and all unspoken application pids registered at round start.
@@ -137,7 +145,8 @@ $\rho_\pk$, full history $\History_\pk$, cumulative input list $x_\pk$, and flag
 $\HasSpoken_\pk,\Corrupted_\pk$.
 After the first tick, also retain the fixed snapshot $L_r$ and input
 snapshots $x_{\pk,r}$ for application pids registered at round start,
-a list $\MaySpeak_r$ of permitted speakers, a list $\MustRun_r$ of
+the public assignment record $\Roles_r$, a list $\MaySpeak_r$ of permitted
+speakers, a list $\MustRun_r$ of
 eligible pids, and a set $\HasRun_r$ of pids whose step algorithm has
 already executed in round $r$.  Retain the round's pending private outputs
 in a list $\PendingOutputs_r$.
@@ -176,8 +185,8 @@ in a list $\PendingOutputs_r$.
   If $r>0$, perform the internal $\EndRound$ sweep below for round $r$.
   Append $\Tick$ to $L$, let $r$ be its tick count, and fix $L_r=L$.
   For each registered application pid $\pk$, fix $x_{\pk,r}=x_\pk$.
-  Compute $\MaySpeak_r=\Schedule(L_r)$ and remove every $\pk$ with
-  $\HasSpoken_\pk=\top$.
+  Compute $(\Roles_r,\MaySpeak_r)=\Schedule(L_r)$ and remove from
+  $\MaySpeak_r$ every $\pk$ with $\HasSpoken_\pk=\top$.
   Let $\MustRun_r$ list the pids in $\MaySpeak_r$ together with all
   unspoken application pids, without repetition and in registration order.
   Set $\HasRun_r=\varnothing$ and $\PendingOutputs_r=()$.
@@ -236,6 +245,6 @@ The parameter $p$ belongs to the execution model.  Committee sizes and
 sharing thresholds belong to the concrete protocol, not to the ledger.
 Security is stated separately by specifying a target functionality
 $\mathcal F$ and requiring a simulation of this execution in the UC
-framework.  The ongoing $\FMPC$ sketched in
-Section~\ref{sec:overview-functionality} is our intended target; neither
-it nor its circuit descriptions are additional algorithms in $\Pi$.
+framework.  Section~\ref{sec:ideal-mpc} defines the ongoing task
+$\FMPC[G]$.  Its circuit-selection rule belongs to the concrete
+protocol, while the ledger executes the supplied algorithms of $\Pi$.

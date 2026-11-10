@@ -1,0 +1,215 @@
+\section{The Ideal MPC Task}
+\label{sec:ideal-mpc}
+
+We specify the reactive task sketched in
+Section~\ref{sec:overview-functionality}.  Its participants are application
+pids.  A public rule chooses the successive Boolean circuits from earlier
+public outputs; each circuit updates a private state and supplies private
+outputs to its recipients.
+
+\subsection{Reactive tasks}
+\label{sec:reactive-task}
+
+Fix a deterministic polynomial-time rule $G$.  In I/O round $s$, the
+application circuit is
+\[
+  F_s=G(s,\phi_1,\ldots,\phi_{s-2}),
+  \qquad
+  (\sigma_s,y_s,\phi_s)=F_s(\sigma_{s-1},x_s).
+\]
+The public-output history supplied to $G$ is empty for $s=1,2$.
+Initially $\sigma_0=\epsilon$.  Here $x_s$ consists of $g_s$ input
+strings of publicly specified lengths $\ell_{s,a}$, $y_s$ consists of
+$h_s$ private output bits, and $\phi_s$ is a public output string.
+The description of $F_s$ specifies these lengths, its public-output
+length, and its incoming and outgoing state lengths.  We require $G$
+to produce valid circuits with compatible state lengths along every
+execution.  Fix public polynomial bounds on circuit size and on all
+input, output, and state lengths.
+
+The dependence on public outputs through round $s-2$ makes
+$F_{s+1}$ available before round $s$ is evaluated.  An application whose
+next circuit depends on its most recent public output can insert
+identity circuits in the even rounds:
+\[
+  F_{2j}(\sigma,\epsilon)=(\sigma,\epsilon,\epsilon).
+\]
+The odd rounds perform the application computations.  An identity round
+has no application inputs or private outputs; its implementation transfers
+the encrypted state to the following garbled round.
+
+\subsection{Registration and execution}
+\label{sec:mpc-execution}
+
+Figures~\ref{fig:mpc-registration} and~\ref{fig:mpc-execution} together
+define $\FMPC[G]$.  All messages carry the session identifier $\sid$.
+Registration produces the same public identifier format as
+Figure~\ref{fig:protocol-steps}: $\pid=(\ncek,\sigvk)$.
+The ideal task uses these strings as identifiers.  It samples the NCE
+registration string using $\SimNCE$ and gives the associated explanation
+material to the adversary, together with the independently generated
+signing key and its tape.  These values contain no application inputs.
+In the realization proof, they let the simulator explain the keys and
+tapes exposed by the implementation without choosing the application's
+pids itself.
+
+The adversary chooses when to announce each round and when to proceed.
+An announcement assigns the next unused application registrations to
+input providers and output recipients, in that order.  Input providers
+receive their circuit and assignment at the next tick.  A subsequent
+$\Proceed$ command starts a one-slot input window at the following tick.
+The functionality freezes the inputs available at that tick.  During
+the window, $\CommitInput$ fixes an honest provider's selected input;
+$\CorruptInput$ supplies a corrupted provider's contribution.  At the
+ending tick, the remaining honest contributions are fixed, missing
+contributions become zero, and the circuit is evaluated.
+
+The public output and corrupt recipients' outputs are then given to the
+adversary.  Honest recipients receive their private outputs two ticks
+later.  This matches the label and output phases of
+Figure~\ref{fig:protocol-schedule}; an intervening corruption exposes an
+already-computed output before its delivery.  Once the input window is
+started, these events are driven by the clock.
+
+\begin{figure}[p]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\textbf{The ideal task $\FMPC[G]$: registration and announcements.}
+
+Parameters: security parameter $\lambda$, session $\sid$, the reactive
+circuit rule $G$ of Section~\ref{sec:reactive-task}, the RNCE and
+signature schemes used for application registration, and a fixed RNCE
+simulator $\SimNCE$.  RNCE uses the fixed delivery-message length
+$\ell_{\mathsf{del}}$.
+
+Retain the clock count $r$, initially zero; the private state
+$\sigma=\epsilon$; public outputs $(\phi_s)$; and $\NextRound=1$.
+Keep an ordered registry with each pid's corruption flag and application
+record.  This record contains all its input arrivals and determined
+outputs, including their times and any pending deliveries.
+For each announced round retain $F_s$, its two ordered pid vectors, and
+its announcement-delivery tick $\ReadyTick_s$.  Allocated pids remain
+reserved.  Execution uses Figure~\ref{fig:mpc-execution}.
+
+\begin{description}
+  \item[$\Register()$ from the adversary.]
+    Sample
+    \[
+      (\widetilde{\ncek},\widetilde c,\tau)
+          \sample\SimNCE(1^\lambda),\qquad
+      (\sigvk,\sigsk)\gets\SigGen(1^\lambda;\rho_{\mathsf{sig}})
+    \]
+    with uniform $\rho_{\mathsf{sig}}$, and set
+    $\pid=(\widetilde{\ncek},\sigvk)$.
+    Reject a repeated pid.  Otherwise append it to the registry,
+    with an empty application record and corruption flag false.
+    Give $(\pid,\widetilde c,\tau,\sigsk,\rho_{\mathsf{sig}})$ to the
+    adversary and output $\pid$ to pid $\pid$.
+
+  \item[$\Announce(s)$ from the adversary.]
+    Require that $s$ is the next unannounced round and
+    $\phi_1,\ldots,\phi_{s-2}$ are available.
+    Compute $F_s=G(s,\phi_1,\ldots,\phi_{s-2})$.
+    Require at least $g_s+h_s$ unallocated registered pids.
+    Assign the first $g_s$ to the input-provider vector
+    $\boldsymbol{\pid}^{\mathsf{in}}_s$ and the next $h_s$ to the
+    output-recipient vector $\boldsymbol{\pid}^{\mathsf{out}}_s$,
+    in registration order.  Reserve them and set $\ReadyTick_s=r+1$.
+    Give $(s,F_s,\boldsymbol{\pid}^{\mathsf{in}}_s,
+      \boldsymbol{\pid}^{\mathsf{out}}_s,\ReadyTick_s)$ to the adversary.
+
+  \item[$\Proceed(s)$ from the adversary.]
+    Require $s=\NextRound$, an announced round with
+    $\ReadyTick_s\leq r$, and no input-start tick yet assigned to $s$.
+    Set
+    \[
+      \InputStart_s=r+1,\qquad
+      \InputClose_s=r+2,\qquad
+      \OutputTick_s=r+4.
+    \]
+    The clock executes these events as specified in
+    Figure~\ref{fig:mpc-execution}.
+\end{description}
+All registered pids may be corrupted at any time.  Inputs are identified
+by their sender pid; the execution and corruption handlers are in
+Figure~\ref{fig:mpc-execution}.
+\end{minipage}}
+\caption{The ideal MPC task: registration, assignment, and starting a round.}
+\label{fig:mpc-registration}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\fbox{%
+\begin{minipage}{0.95\textwidth}
+\small
+\textbf{The ideal task $\FMPC[G]$: inputs, clock events, and corruption.}
+Use the parameters and retained state of Figure~\ref{fig:mpc-registration}.
+For each started round, retain the selected values $\ChosenInput_{s,a}$
+and committed values $\CommittedInput_{s,a}$, using $\bot$ for unset values.
+
+\begin{description}
+  \item[$\Input(u)$ from a registered pid $\pid$.]
+    If this pid is corrupted, route the input to the adversary.
+    Otherwise append $(r,u)$ to its ordered input history; let $j$ be
+    this entry's index.  Notify the adversary of $(\Input,\pid,j)$.
+
+  \item[$\CommitInput(s,a)$ from the adversary.]
+    Require that $s$ has started, $a\in[g_s]$, $r=\InputStart_s$,
+    $\pid^{\mathsf{in}}_{s,a}$ honest,
+    $\ChosenInput_{s,a}\ne\bot$, and $\CommittedInput_{s,a}=\bot$.
+    Set $\CommittedInput_{s,a}=\ChosenInput_{s,a}$.
+
+  \item[$\CorruptInput(s,a,x)$ from the adversary.]
+    Require that $s$ has started, $a\in[g_s]$, $r=\InputStart_s$,
+    $\pid^{\mathsf{in}}_{s,a}$ corrupt,
+    $x\in\bits^{\ell_{s,a}}$, and $\CommittedInput_{s,a}=\bot$.
+    Set $\CommittedInput_{s,a}=x$.
+
+  \item[Clock tick from $\FClock$.]
+    Increment $r$.  Process all events assigned to this tick, in the
+    following order and in increasing $s$ within each event type.
+    \begin{enumerate}
+      \item If $r=\InputClose_s$, set each still-unset
+        $\CommittedInput_{s,a}$ to $\ChosenInput_{s,a}$ when its provider
+        is honest and this selected value exists, and to
+        $0^{\ell_{s,a}}$ otherwise.  Compute and retain
+        \[
+          (\sigma',y_s,\phi_s)
+            =F_s\bigl(\sigma,(\CommittedInput_{s,a})_a\bigr),
+          \qquad \sigma\gets\sigma'.
+        \]
+        Record $(s,j,y_{s,j},\OutputTick_s)$ for each recipient
+        $\pid^{\mathsf{out}}_{s,j}$.  Give $(s,\phi_s)$ and the
+        addressed output bits of corrupt recipients to the adversary.
+      \item If $r=\OutputTick_s$, output $y_{s,j}$ to each still-honest
+        pid $\pid^{\mathsf{out}}_{s,j}$, in increasing $j$, and mark the
+        deliveries in their records.  Set $\NextRound=s+1$.
+      \item For each $s$ with $r=\ReadyTick_s$, in increasing $s$, output
+        \[
+          (\Ready,s,F_s,a,\boldsymbol{\pid}^{\mathsf{in}}_s,
+                            \boldsymbol{\pid}^{\mathsf{out}}_s)
+        \]
+        to each honest $\pid^{\mathsf{in}}_{s,a}$, in increasing $a$.
+        Record these outputs in the corresponding application records.
+      \item If $r=\InputStart_s$, freeze each provider's input list.
+        Let $j$ be the first entry whose value has the form
+        $(s,a,x)$ with $x\in\bits^{\ell_{s,a}}$.
+        Set $\ChosenInput_{s,a}=x$, or $\bot$ if no such entry exists,
+        and set $\CommittedInput_{s,a}=\bot$.
+        Give $(\SelectedInput,s,a,j)$ to the adversary, with $j=\bot$
+        when there is no selected entry.
+    \end{enumerate}
+
+  \item[On corruption of a registered pid $\pid$.]
+    Mark it corrupted.  Give its application record to the adversary,
+    including all input arrivals, its selected and committed input if
+    defined, and all already-determined outputs with their delivery times.
+\end{description}
+Reject malformed commands and commands whose conditions do not hold.
+\end{minipage}}
+\caption{The ideal MPC task: input commitment, evaluation, and timed outputs.}
+\label{fig:mpc-execution}
+\end{figure}

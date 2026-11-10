@@ -10,8 +10,8 @@
 % Algorithm names, game commands, and record tags.
 \newcommand{\Setup}{\mathsf{Setup}}
 \newcommand{\Sample}{\mathsf{Sample}}
-\newcommand{\DistCircuit}{\mathsf{DistCircuit}}
-\newcommand{\SampledCircuit}{\mathsf{SampledCircuit}}
+\newcommand{\SampleCircuit}{\mathsf{SampleCircuit}}
+\newcommand{\GarbledRound}{\mathsf{GarbledRound}}
 \newcommand{\RoundCircuit}{\mathsf{RoundCircuit}}
 \newcommand{\InputRecords}{\mathsf{InputRecords}}
 \newcommand{\MaskedOutputs}{\mathsf{MaskedOutputs}}
@@ -44,6 +44,9 @@
 \newcommand{\EncodeInput}{\mathsf{EncodeInput}}
 \newcommand{\PrvOne}{\mathsf{prv1}}
 
+\newcommand{\RNCE}{\mathsf{RNCE}}
+\newcommand{\SNCE}{\mathsf{SNCE}}
+\newcommand{\PKE}{\mathsf{PKE}}
 \newcommand{\KeyGen}{\mathsf{KeyGen}}
 \newcommand{\Enc}{\mathsf{Enc}}
 \newcommand{\Dec}{\mathsf{Dec}}
@@ -90,6 +93,17 @@
 \newcommand{\CRS}{\mathsf{CRS}}
 \newcommand{\Gen}{\mathsf{Gen}}
 \newcommand{\Schedule}{\mathsf{Schedule}}
+\newcommand{\Roles}{\mathsf{Roles}}
+\newcommand{\Allocate}{\mathsf{Allocate}}
+\newcommand{\AllocRound}{\mathsf{allocRound}}
+\newcommand{\CoinPhase}{\mathsf{CoinPhase}}
+\newcommand{\InputPhase}{\mathsf{InputPhase}}
+\newcommand{\LabelPhase}{\mathsf{LabelPhase}}
+\newcommand{\OutputPhase}{\mathsf{OutputPhase}}
+\newcommand{\PublicData}{\mathsf{PublicData}}
+\newcommand{\CoinPackets}{\mathsf{CoinPackets}}
+\newcommand{\PostedKeys}{\mathsf{PostedKeys}}
+\newcommand{\PostedMessages}{\mathsf{PostedMessages}}
 \newcommand{\ComputationStep}{\mathsf{ComputationStep}}
 \newcommand{\ApplicationStep}{\mathsf{ApplicationStep}}
 \newcommand{\Register}{\mathsf{Register}}
@@ -136,3 +150,18 @@
 \newcommand{\Forge}{\mathsf{Forge}}
 \newcommand{\InputRecord}{\mathsf{InputRecord}}
 \newcommand{\DefaultInput}{\mathsf{DefaultInput}}
+
+% Ideal MPC task commands and retained state.
+\newcommand{\Announce}{\mathsf{Announce}}
+\newcommand{\Proceed}{\mathsf{Proceed}}
+\newcommand{\Ready}{\mathsf{Ready}}
+\newcommand{\ReadyTick}{\mathsf{ReadyTick}}
+\newcommand{\InputStart}{\mathsf{InputStart}}
+\newcommand{\InputClose}{\mathsf{InputClose}}
+\newcommand{\OutputTick}{\mathsf{OutputTick}}
+\newcommand{\NextRound}{\mathsf{NextRound}}
+\newcommand{\ChosenInput}{\mathsf{ChosenInput}}
+\newcommand{\CommittedInput}{\mathsf{CommittedInput}}
+\newcommand{\SelectedInput}{\mathsf{SelectedInput}}
+\newcommand{\CommitInput}{\mathsf{CommitInput}}
+\newcommand{\CorruptInput}{\mathsf{CorruptInput}}

@@ -4,23 +4,33 @@
 We describe a simulator $\mathcal S$ that runs the real-world adversary
 while interacting with $\FMPC$.  It simulates the public ledger, the
 universal-sampler parameters and oracle, and the information disclosed
-on corruption.  It knows each public round circuit, the input-group and
-output-wire assignments,
-and the communication schedule.  It does not receive honest parties'
-input strings or output bits, nor the functionality's secret state.  An allowed
+on corruption.  It learns each public round circuit and its input-provider
+and output-recipient assignments when they are announced, and follows the
+simulated communication schedule.  It receives the public outputs
+$\phi_s$, but not honest parties' input strings or private output bits,
+nor the functionality's secret state.  An allowed
 corruption supplies the affected party's retained inputs and already-computed
 outputs, including outputs pending private delivery.
-Honest inputs arrive at the public round start.  During the public
-input-posting phase, the simulator learns which providers supplied an
-input, but not its value, as needed to reproduce a posting or the default.
+Private inputs may arrive throughout the execution.  For each
+$(\Input,\pid,j)$ notice, record the current simulated ledger position.
+At the start of the input phase, $\SelectedInput$ identifies the selected
+entry of each provider's frozen list without revealing its value.
+On corruption, combine the disclosed input contents with these recorded
+positions to reconstruct the ledger's retained input history.
+An honest input becomes committed when its simulated posting occurs.
+Section~\ref{sec:ideal-mpc} specifies these application events and their
+timing.
 
 Preparation produces a simulated garbling, input-encryption keys, and
 non-committing ciphertexts.  Later, the simulator fixes the public masked
-outputs and a zero-state ciphertext, obtains one simulated input encoding,
-and uses share completion and receiver explanations to release it.
-Sender explanations handle input-provider corruptions; receiver
-explanations handle committee and output-recipient corruptions.
-Indistinguishability is argued separately.
+outputs and a zero-state ciphertext, combines them with the prescribed
+public output $\phi_s$, obtains one simulated input encoding, and uses
+share completion and receiver explanations to release it.
+Input encryption uses one full-NCE simulator, supporting both sender
+and receiver explanations.  Sender explanations handle corruption after
+an honest input posting; receiver explanations give the simulator a
+decryption key when corruption occurs before that posting.  Registered
+delivery keys require only RNCE.  Indistinguishability is argued separately.
 Whenever a nonce or label committee is assigned, $\mathcal S$ checks
 its number of initially corrupt members and aborts if this exceeds the
 sharing threshold $t$.  Below we describe the execution when these
@@ -30,8 +40,8 @@ checks pass.
   \item[Registration and retained state.]
     Simulate the initial random corruption experiment for computation
     parties.  Generate genuine keys for initially corrupt parties and
-    disclose their prescribed state.  For each initially honest delivery
-    key, run
+    disclose their prescribed state.  For each initially honest
+    computation party's delivery key, run
     \[
       (\widetilde{\pk},\widetilde c,\SimState_P)
         \sample\SimNCE(1^\lambda).
@@ -39,10 +49,20 @@ checks pass.
     Register $\widetilde{\pk}$, but retain $\widetilde c$ and
     $\SimState_P$ privately until the key is assigned its unique delivery
     role.  Thus registration can precede that assignment by arbitrarily
-    many rounds.  Generate the registered one-time signature keys
-    $(\sigvk,\sigsk)$ and key-generation tape honestly.  These signing
-    keys are distinct from delivery keys and from the input-encryption
-    keys that will be published in the round's sample.
+    many rounds.
+
+    For an application registration, call $\Register()$ on $\FMPC$.
+    The registration in Figure~\ref{fig:mpc-registration} samples
+    the NCE public key and explanation material by the same procedure,
+    and independently samples $(\sigvk,\sigsk)$ and its generation tape.
+    It fixes $\pid=(\widetilde{\pk},\sigvk)$, gives that public tuple to
+    the application pid, and gives the ciphertext, explanation material,
+    signing key, and signing-key generation tape to the simulator.
+    Use this supplied tuple in the simulated ledger registration.
+    The simulator withholds the helper material from the real-world
+    adversary until the protocol requires a disclosure.  Only application
+    registrations have signing keys; the input-encryption keys published
+    in a round sample are separate.
 
     To explain a delivery of a message $m$ to $P$, compute
     $(\widetilde\rho_R,\widetilde\rho_S)
@@ -50,27 +70,48 @@ checks pass.
     secret key by rerunning $\KeyGen(1^\lambda;\widetilde\rho_R)$.
     Only the receiver explanation is disclosed for a private delivery.
     Save this explanation once made: every subsequent disclosure uses
-    the same key and complete key-generation tape.  When that state must
-    be disclosed, fill in the retained private decryption computations
-    using the explained key and fresh decryption coins with their honest
-    distribution.  These private coins and histories were not previously
-    exposed; once supplied, they too are kept fixed.
-    For a nonce-committee key, an input provider's unused delivery key,
-    or an output key corrupted before its pad ciphertext is included in
-    a public sample,
+    the same key and complete key-generation tape.  On disclosure, complete
+    the pid's fixed step tape, preserving all previously fixed coins and
+    sampling its remaining used bits with their prescribed distribution.
+    Reproduce its step computations on the saved ledger and input snapshots.
+    Computation members perform public reconstruction and release tests;
+    output recipients also decrypt their pad using the explained key.
+    Keep this tape and history fixed thereafter.
+    For a nonce-committee key or an input provider's unused delivery key,
     explain a fixed dummy message of the prescribed length and discard
-    the unpublished special ciphertext.  Use ordinary encryptions under
-    the fixed key for nonce shares or the eventual output pad.  Disclose
-    the fixed key, tape, and retained history whenever required.
+    the unpublished special ciphertext.  Do the same whenever an
+    application pid is corrupted before its delivery ciphertext is
+    published, including corruption before any role has been assigned.
+    Use ordinary encryptions under the fixed key for subsequent nonce
+    shares or an eventual output pad.  Disclose the fixed key, tape,
+    and retained history whenever required.
+
+  \item[Task announcements and timing.]
+    When the simulated ledger allocates round $s$, call $\Announce(s)$.
+    The ideal and simulated registries use the same application pids
+    in the same order, so their input-provider and output-recipient
+    vectors agree.  The ideal task delivers the resulting $\Ready$
+    notifications at the next tick; record the corresponding public
+    computations in the simulated application histories.
+
+    Call $\Proceed(s)$ in the clock interval preceding the simulated
+    input phase.  At the next tick, the ideal task freezes the same
+    input-arrival prefix and reports its selected indices.  During the
+    input phase, use $\CommitInput$ and $\CorruptInput$ as below.
+    The closing tick determines $\phi_s$ and the outputs; honest
+    private outputs are delivered two ticks later, at the end of the
+    simulated output phase.  Use $\phi_s$ in subsequent simulated
+    task announcements only when the ledger's public reconstruction
+    has reached that round's evaluation.
 
   \item[Public sampling.]
     Maintain a table indexed by exact distribution-circuit descriptions
-    $\DistCircuit$.  A service $\SimSample(\DistCircuit)$ returns the
-    stored sample if one exists.  For a designated $\DistCircuit_s$,
-    it prepares the simulated $\SampledCircuit_s$ described below.
+    $\SampleCircuit$.  A service $\SimSample(\SampleCircuit)$ returns the
+    stored sample if one exists.  For a designated $\SampleCircuit_s$,
+    it prepares the simulated $\GarbledRound_s$ described below.
     For any other description, including every nonce-only description,
     it samples fresh uniform coins $\rho$ and computes
-    $\DistCircuit(\rho)$ honestly.  It stores the result before returning it.
+    $\SampleCircuit(\rho)$ honestly.  It stores the result before returning it.
 
     Use this service as the oracle for the universal sampler's simulator:
     \[
@@ -91,21 +132,21 @@ checks pass.
     Once the protocol freezes the next round's circuit, input lengths,
     assignments, signature verification keys, delivery keys, and committee
     rosters, designate its exact description
-    $\DistCircuit_s$, including its already-fixed nonce $Q_s$, in the sampling service.
+    $\SampleCircuit_s$, including its already-fixed nonce $Q_s$, in the sampling service.
     The simulator knows this nonce before its public release.  It obtains
     $Q_s$ by decrypting enough packets from its nonce-only sample with
     the retained nonce-committee keys and reconstructing.  This does not
     require the ideal sample source to reveal a sampling tape.
 
-    If $\DistCircuit_s$ was already answered as an ordinary description, abort;
+    If $\SampleCircuit_s$ was already answered as an ordinary description, abort;
     never replace an earlier table entry.  Otherwise reserve that entry
-    for the simulated $\SampledCircuit_s$.  Simulate the nonce committee's
+    for the simulated $\GarbledRound_s$.  Simulate the nonce committee's
     scheduled key disclosures and subsequent corruptions using its
     already-fixed keys and tapes.  Robust reconstruction releases the
     one pre-existing $Q_s$, even if corrupt members withhold or alter
     their contributions.  The other fields remain fixed after release.
 
-  \item[Prepare $\SampledCircuit_s$.]
+  \item[Prepare $\GarbledRound_s$.]
     Generate a genuine state-transfer pair
     $(\statepk_s,\statesk_s)$.  For each input provider $a$, run
     \[
@@ -114,8 +155,12 @@ checks pass.
     \]
     Publish its simulated public key in the sample and retain its
     ciphertext for the provider's posting.  This invocation uses the
-    prescribed input length.  It is separate from all registered
-    delivery keys and from the state-transfer pair.
+    prescribed input length and the full-NCE simulator.
+    Independently sample and retain the input-decryption tape
+    $\delta_{s,a}$ used by Figure~\ref{fig:round-circuit}.
+    These keys are separate from registered delivery keys and the
+    state-transfer pair.  If the provider is already corrupt, recover
+    its internal input-decryption key by the procedure below.
 
     Let $\RoundCircuit_s$ be the augmented circuit of
     Figure~\ref{fig:round-circuit}, with public inputs comprising
@@ -125,11 +170,11 @@ checks pass.
       (\GC_s,\SimState_s)
         \sample\SimGarble(1^\lambda,\Topo(\RoundCircuit_s)).
     \]
-    Include $\statepk_s$ and $\GC_s$ in $\SampledCircuit_s$.
+    Include $\statepk_s$ and $\GC_s$ in $\GarbledRound_s$.
     The topology of $\RoundCircuit_s$ is independent of the hardcoded decryption keys, pads,
-    and random tapes, so none need be assigned to prepare this simulated
-    garbling.  In particular, no input-decryption secret keys are needed
-    for the simulated public keys.
+    and random tapes.  Preparing this simulated garbling therefore needs
+    no input-decryption secret key, although the decryption tapes are
+    already fixed for interpreting corrupt providers' ciphertexts.
 
     Include the retained special ciphertext for each still-honest
     output-recipient and label-committee delivery role.
@@ -137,23 +182,49 @@ checks pass.
     include its genuine encryption under the recipient's registered key,
     and retain $r_i$ for the public-output step.
     For each label committee, fix uniform shares at its initially corrupt
-    positions and genuinely encrypt their packets.  Fix the public
-    wire-bit selection instructions as in the protocol.
+    positions and genuinely encrypt their packets.  The public
+    assignments and release conditions are those of the protocol.
     Retain the garbling simulator state for the later input-encoding call.
 
-  \item[Simulate input postings.]
-    For each provider $a$ that supplied an input, take its retained
+  \item[Input-decryption keys for corrupt providers.]
+    For a provider corrupted before an honest input posting, perform
+    the following once, as soon as both its corruption and preparation
+    of its round sample have occurred:
+    \[
+      (\widetilde\rho_R,\widetilde\rho_S)
+        \sample\ExplainNCE(\SimState^{\mathsf{in}}_{s,a},
+                          0^{\ell_{s,a}}),
+      \qquad
+      (\widetilde{\inputpk}_{s,a},\inputsk_{s,a})
+        \gets\KeyGen(1^\lambda;\widetilde\rho_R).
+    \]
+    Discard the unpublished reserved ciphertext and retain this
+    decryption key.  The key is internal to the simulator: it was never
+    held by the input provider and is not included in its corruption
+    disclosure.  An actual corruption separately discloses the provider's
+    registered secret material, complete input history, and retained
+    computations as required by the ledger.  Key recovery at sample
+    preparation performs only the internal calculation above.
+    The procedure also covers corruption after a silent activation,
+    provided no honest input ciphertext was posted.
+
+  \item[Simulate honest input postings.]
+    At an honest provider's activation in the input phase, use the input
+    selected from its frozen list.  If one is present, take its retained
     ciphertext $\widetilde c^{\mathsf{in}}_{s,a}$ and honestly sign
     the record
     \[
-      \InputRecord(\sid,s,a,\DistCircuit_s,
+      \InputRecord(\sid,s,a,\SampleCircuit_s,
          \widetilde c^{\mathsf{in}}_{s,a}).
     \]
     Post the ciphertext and signature atomically.  Save the signing
     randomness; it is never changed.  The public ciphertext bits determine
     the selected label committees, without knowledge of the input string.
-    If the provider is subsequently corrupted, obtain its accepted input
-    $x_{s,a}$ from $\FMPC$ and compute
+    For an activation during the input phase, call
+    $\CommitInput(s,a)$ at this posting.  An activation forced by the
+    closing-tick sweep instead uses the ideal task's automatic commitment
+    at that tick.  If the provider is subsequently corrupted, obtain its
+    committed input $x_{s,a}$ from $\FMPC$ and compute
     \[
       (\widetilde\rho_R,\widetilde\rho_S)
         \sample\ExplainNCE(\SimState^{\mathsf{in}}_{s,a},x_{s,a}).
@@ -168,33 +239,45 @@ checks pass.
     $\FMPC$: the honest input was already accepted, and later corruption
     cannot change it.
 
-    A provider that supplied no input stays silent; at the deadline its
-    public record becomes $\DefaultInput$.  Process signatures, context
-    checks, record lengths, and deadlines as in the protocol.  Abort if
-    an accepted record under a still-protected honest provider's key was
-    not produced by its prescribed signing step.  The authentication
+    If no matching input is present, the honest provider remains silent.
+    A later corruption before the deadline may still allow an adversarial
+    posting.  Reproduce arbitrary postings by corrupt parties and apply
+    the protocol's signature, context, length, and deadline checks.
+    Abort if a record accepted before its provider's signing-key exposure
+    was not produced by its honest signing step.  The authentication
     argument below bounds this event.
 
-    Under the present corruption rule a fresh honest input provider
-    cannot be corrupted before this post.  Consequently the simulator
-    does not choose its input on the adversary's behalf.  Initially corrupt
-    computation parties may send arbitrary messages; process those
-    messages and the common deadlines exactly as the protocol prescribes.
+  \item[Interpret corrupt postings and close inputs.]
+    For a provider corrupted before an honest posting, interpret its
+    first accepted signed record when that record appears during the
+    input phase.  Decrypt its ciphertext using $\inputsk_{s,a}$ and
+    the retained $\delta_{s,a}$, replacing decryption or length failure
+    by $0^{\ell_{s,a}}$, exactly as the plaintext circuit does.
+    Submit this value through $\CorruptInput(s,a,x)$ before the closing
+    tick.  Irrevocable posting and first-record selection fix this
+    contribution.  The unused private input supplied before corruption
+    has not committed a value.
+    Contributions already committed by honest postings remain fixed.
+    At the closing tick, the ideal task commits the remaining honest
+    selected inputs and supplies zero defaults for missing contributions.
+    Simulate the forced honest postings using these same selected entries.
+    Outputs are determined before any honest label committee speaks.
 
   \item[Fix the public evaluation result.]
-    Once input choices close, the ideal outputs are determined, and the
-    successor sample is available, choose independent uniform masked
-    bits $z_i$ for still-honest recipients.  For an already-corrupt
-    recipient, obtain $y_i$ from $\FMPC$ and set $z_i=y_i\oplus r_i$
+    At input closure, obtain the public output $\phi_s$ from $\FMPC$.
+    The successor sample is already available.  Choose independent
+    uniform masked bits $z_i$ for still-honest recipients.  For an
+    already-corrupt recipient, obtain $y_i$ from $\FMPC$ and set $z_i=y_i\oplus r_i$
     using its fixed pad.
     Choose fresh encryption coins and form
     \[
       c_s\sample\Enc(\statepk_{s+1},0^{|\sigma_s|}),
       \qquad
-      X_s\sample\SimEncode(\SimState_s,(z,c_s)).
+      X_s\sample\SimEncode(\SimState_s,(z,c_s,\phi_s)).
     \]
-    Here $z$ is the vector of masked bits and $|\sigma_s|$ is the
-    publicly specified length of the updated state.
+    Here $z$ is the vector of masked bits, $|\sigma_s|$ is the
+    publicly specified length of the updated state, and $\phi_s$ has
+    the public-output length specified by $F_s$.
     Make this one encoding call before any honest label committee
     speaks, and keep its result fixed.  The same public $c_s$ is the
     incoming state ciphertext for round $s+1$; simulating that round
@@ -209,18 +292,19 @@ checks pass.
     the incoming state ciphertext, or the successor public key.
 
     For each honest member, explain its delivery ciphertext as the
-    resulting share and selection instructions \emph{before} posting
-    the explained decryption key.  On a later corruption, reproduce this
-    same key, tape, decrypted packet, and retained computation history.
+    resulting share packet \emph{before} posting the explained decryption
+    key.  On a later corruption, reproduce this same key, tape, and
+    retained computation history.
     The unselected committees' honest members remain silent and protected;
     their initially corrupt members retain the shares already fixed.
     Simulate reconstruction and public evaluation with the released
-    encoding.
+    encoding.  Its public result is $(z,c_s,\phi_s)$; subsequent
+    circuit descriptions are obtained from the prescribed rule $G$.
 
   \item[Private outputs and further rounds.]
-    Private application outputs are delivered by $\FMPC$, not computed
-    by $\mathcal S$.  Handle chosen output-recipient corruptions whenever
-    they occur.  If a recipient is first corrupted after its pad
+    Application notifications and private outputs are delivered by
+    $\FMPC$, not computed by $\mathcal S$.  Handle chosen
+    output-recipient corruptions whenever they occur.  If a recipient is first corrupted after its pad
     ciphertext is included in a sample but before $z_i$ is fixed,
     choose a uniform pad $r_i$ and explain the ciphertext accordingly.
     Later use its ideal output to set $z_i=y_i\oplus r_i$.
@@ -237,9 +321,9 @@ checks pass.
     public sample is handled by the registration rule.
 
     Continue with the already-prepared successor, preparing one further
-    round before its evaluation.  Internal identity-buffer rounds have
-    no application inputs or outputs: simulate their state-ciphertext
-    transfer without making an additional invocation of $\FMPC$.
+    round before its evaluation.  If the public circuit sequence includes
+    an identity round, simulate it by the same procedure with no
+    application inputs or private outputs and with $\phi_s=\epsilon$.
     Keep all explanations for parties whose states have been exposed,
     whether by posting or corruption, but do not
     disclose a garbler tape, input-decryption secret key, or state-transfer

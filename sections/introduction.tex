@@ -57,9 +57,8 @@ reveal all initial random corruptions immediately.
 
 Input providers and output recipients are different.  Their application
 roles are often tied to particular users, making targeted compromise
-more plausible.  We retain chosen adaptive corruption: input providers
-become eligible after their irrevocable posting, while output recipients
-may be corrupted at any time, even if silent.  Crucially, the adversary
+more plausible.  Both input providers and output recipients may be
+corrupted at any time, even while silent.  Crucially, the adversary
 may also choose \emph{not} to corrupt them.  Security must protect those
 parties' private data rather than rely on corruption eventually making
 it available.
@@ -67,15 +66,15 @@ it available.
 \paragraph{The task and construction.}
 We consider ongoing MPC with private state.  In each I/O round a public
 Boolean circuit maps that state and new private inputs to an updated
-state and outputs for designated recipients.  The honest parties are
-assumed to agree on the circuit; establishing agreement is not part of
-the task.  We use the UC framework to state this ideal computation and
-the ledger assumption.
+state, private outputs for designated recipients, and a public output.
+A fixed public rule selects the next circuits from these public outputs.
+We use the UC framework to state this ideal computation and the ledger
+assumption.
 
 Our construction uses an independent garbling for each I/O round.
 A \emph{universal sampler} has public parameters $U$.  Given the
-description of a distribution circuit $\DistCircuit$, anyone can
-deterministically compute the same sample $\Sample(U,\DistCircuit)$,
+description of a distribution circuit $\SampleCircuit$, anyone can
+deterministically compute the same sample $\Sample(U,\SampleCircuit)$,
 as though the circuit had been run once with private random coins.
 The coins are not separately revealed,
 and different descriptions behave like independent runs.
@@ -117,7 +116,10 @@ circuit publishes a fresh state-reception public key and has the
 matching secret key embedded inside its garbling.  Prepare the successor
 before evaluating the current circuit; the current circuit can then
 encrypt its outgoing state under the successor's public key.
-The successor decrypts that ciphertext internally.
+The successor decrypts that ciphertext internally.  The task provides
+one round of lookahead for circuit selection; inserting identity rounds
+accommodates applications that choose their next circuit from their
+latest output.
 Adaptive garbling~\cite{HemenwayEtAl2016AdaptiveGarbling} accommodates
 inputs fixed after the garbling is published, including this successor
 key and the incoming state ciphertext.  This breaks the dependence on
