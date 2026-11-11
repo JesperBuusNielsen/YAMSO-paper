@@ -23,7 +23,7 @@ Our construction uses $p<1/3$ and never reuses a party for a later role.
 
 Each party may post at most once.  An honest posting is irrevocable and
 cannot be overtaken through subsequent corruption.  At each tick, the
-ledger freezes the public record and accumulated private inputs used by
+ledger freezes the public record and accumulated application inputs used by
 that round's local computations.  The adversary chooses their order;
 the ending tick executes any remaining eligible honest parties and
 delivers the round's private outputs.  A silent input provider can first
@@ -42,7 +42,7 @@ $\xsec_s$, and a public Boolean circuit computes
   (\sigma_s,\ysec_s,\ypub_s)=F_s(\sigma_{s-1},\xsec_s).
 \]
 Here $\ysec_s$ is the vector of private recipient outputs and $\ypub_s$
-is one common public string.  A fixed rule selects the circuit from
+is one common public output string.  A fixed rule selects the circuit from
 preceding public inputs and outputs:
 \[
   F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\leq t\leq s-2}\bigr),
@@ -140,7 +140,7 @@ takes place inside the garbling.
     decryption defaults only the secret component to zero.
     The public component enters the history used by $G$ directly, so it
     can describe a later circuit without being processed by a garbling.
-    The ciphertext plaintext is used only inside the circuit.
+    The secret input is recovered only inside the circuit.
     Non-committing encryption supports explaining the retained encryption
     randomness when an honest sender is later corrupted.
     Figure~\ref{fig:signed-encrypted-inputs} gives the submission and
@@ -185,7 +185,7 @@ takes place inside the garbling.
     Evaluation also reveals the public application output $\ypub_s$.
     No speaking intermediary holds the state, and neighboring garblings
     need no shared wire labels.  The incoming ciphertext and successor
-    public key are late public inputs, so the current garbling can be
+    public key are late inputs to the garbled circuit, so it can be
     prepared before they exist.  Label committees restrict evaluation
     to their ledger-determined values.
     Figure~\ref{fig:round-circuit} specifies this augmented plaintext
@@ -215,8 +215,8 @@ Figure~\ref{fig:role-allocation} gives the allocation rule.
 After preparing round 1, the protocol repeats four phases: prepare the
 successor, collect the current round's signed input records, release
 the selected labels, and evaluate and deliver outputs.  Each phase
-occupies one ledger round.  The input-posting deadline fixes the public
-string whose labels will be released.  Everyone then derives the same
+occupies one ledger round.  The input-posting deadline fixes each provider's public component
+and ciphertext record; the latter selects its garbled input labels.  Everyone then derives the same
 garbled evaluation result; no additional party posts the state ciphertext,
 masked outputs, or public output $\ypub_s$.
 Figure~\ref{fig:protocol-schedule} specifies the start
