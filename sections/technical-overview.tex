@@ -44,7 +44,12 @@ $F_s=G(s,\phi_1,\ldots,\phi_{s-2})$.
 Its public layout assigns an input string of specified length to each
 input provider and one output bit to each output recipient.  These
 application parties are the participants of the ideal task; computation
-committees belong to its implementation.
+committees belong to its implementation.  Write
+$\boldsymbol{\pid}_s=(\boldsymbol{\pid}^{\mathsf{in}}_s,
+\boldsymbol{\pid}^{\mathsf{out}}_s)$ for the ordered input-provider and
+output-recipient lists.  The circuit notification is
+$(s,F_s,\boldsymbol{\pid}_s)$; a provider identifies its input index by
+its position in $\boldsymbol{\pid}^{\mathsf{in}}_s$.
 
 Inputs and recipient outputs remain private, while participation is
 visible.  Missing inputs have the all-zero value of the prescribed
@@ -59,6 +64,34 @@ Section~\ref{sec:ideal-mpc} defines the reactive task and its
 registration, announcement, input, and output interfaces.  The adversary
 chooses when to proceed; the clock then fixes the input deadline and
 output-delivery time.
+
+Figure~\ref{fig:model-simulation} compares the ledger execution with its
+ideal simulation.  On the left, the protocol algorithms provide setup
+($\CRS$), key generation ($\Gen$), scheduling ($\Schedule$), and local
+computation ($\ComputationStep$, $\ApplicationStep$);
+Section~\ref{sec:yaso-syntax} gives their interfaces.
+On the right, $\Announce$ fixes the circuit and participant assignments;
+input providers receive their notification at $\ReadyTick_s$.
+The command $\Proceed$ schedules the input window for the next tick.
+The simulator uses $\CommitInput$ to fix an honest provider's already
+selected input without learning it, and $\CorruptInput$ to supply a
+corrupted provider's contribution.  Registration returns the NCE
+ciphertext $\widetilde c$ and explanation information $\tau$, together
+with a signing key $\sigsk$ and its generation tape $\rho_{\mathsf{sig}}$;
+these let the simulator explain later corruptions.
+Section~\ref{sec:mpc-execution} defines these commands, and
+Section~\ref{sec:simulator} describes the simulation.
+
+\begin{figure}[tp]
+\centering
+\resizebox{\linewidth}{!}{\input{figures/model-simulation}}
+\caption{Real and ideal executions, with the dummy adversary and dummy-party
+routing suppressed.  The environment sees matching application I/O and
+ledger-command interfaces.  The dashed ledger is simulated inside
+$\mathcal S$.  Braces group application I/O for $\pid=\pk$.
+In either execution, $\mathcal Z$ drives time and the simulator must follow it.}
+\label{fig:model-simulation}
+\end{figure}
 
 \subsection{Gadgets}
 \label{sec:overview-gadgets}

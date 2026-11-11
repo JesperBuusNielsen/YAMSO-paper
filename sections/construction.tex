@@ -1,6 +1,9 @@
 \section{Construction}
 \label{sec:construction}
 
+We instantiate the algorithms $\Pi$ executed inside $\FLedger[\Pi]$
+on the left of Figure~\ref{fig:model-simulation}.
+
 For I/O round $s$, $\SampleCircuit_s$ denotes the exact description of
 the circuit that samples a garbled round.  Its public output is
 \[
@@ -709,8 +712,8 @@ $\boldsymbol{\pk}_s$.  Allocation fixes these fields before $Q_s$ is
 released.  The public output $\phi_s$ has no recipient allocation.
 
 Keys may register before the circuit is known.  Once the circuit and
-enough keys are available, its input providers receive a $\Ready$
-notification with their circuit and assignments, as specified in
+enough keys are available, its input providers receive their circuit and
+assignments, as specified in
 Figure~\ref{fig:protocol-steps}.  A silent committee member's key remains
 allocated: revealing it for another role would expose its earlier
 share.  All later committees therefore use previously unallocated pids.
@@ -844,7 +847,7 @@ independent calls, except with negligible probability under the stated
 committee bound.
 
 At $r=\AllocRound_s$, an input provider's application step returns its
-$\Ready$ notification; the ledger delivers it at tick $r+1$.
+circuit notification; the ledger delivers it at tick $r+1$.
 At most one I/O round is allocated per tick, and $\InputPhase(s)$ follows
 $\CoinPhase(s+1)$, so $r_s^{\mathsf{in}}\geq\AllocRound_s+2$.
 The provider has time to respond before its input list freezes.
@@ -865,6 +868,8 @@ and~\ref{fig:mpc-execution}.
 \textbf{The party algorithms of $\Pi$}
 \end{center}
 Use the start ticks and public data of Figure~\ref{fig:protocol-schedule}.
+Write $\boldsymbol{\pid}_s=(\boldsymbol{\pid}^{\mathsf{in}}_s,
+\boldsymbol{\pid}^{\mathsf{out}}_s)$ for the two application-pid vectors.
 Both step algorithms use the party's fixed private step tape as specified
 by $\FLedger$, with disjoint portions for distinct randomized calls.
 They read $(\sid,U)$ from the $\Setup$ record; access to $H$ in public
@@ -906,8 +911,7 @@ step before using it.
     Write $\sk=(\sk^{\mathsf{del}},\sigsk)$.
     If $\pk=\pid^{\mathsf{in}}_{s,a}$ and $r=\AllocRound_s$, return
     \[
-      \bigl((\Ready,s,F_s,a,\boldsymbol{\pid}^{\mathsf{in}}_s,
-                           \boldsymbol{\pid}^{\mathsf{out}}_s),\bot\bigr).
+      \bigl((s,F_s,\boldsymbol{\pid}_s),\bot\bigr).
     \]
     If $\pk=\pid^{\mathsf{in}}_{s,a}$ in $\InputPhase(s)$, use
     $\GarbledRound_s$ from the table.

@@ -1,0 +1,119 @@
+% UC entities only. The thin left arm belongs to the environment.
+\begin{tikzpicture}[
+  x=.95cm,y=.95cm,font=\fontsize{9}{11}\selectfont,
+  >={Latex[length=1.6mm,width=1.1mm]},
+  box/.style={draw=black!65,line width=.6pt,rounded corners=.8mm,
+              fill=white,align=center,inner sep=0pt},
+  appflow/.style={->,draw=YasoApp,line width=.75pt},
+  controlflow/.style={->,draw=YasoControl,line width=.7pt},
+  clockflow/.style={->,draw=black!40,line width=.4pt,dashed},
+  labeltext/.style={fill=white,inner sep=2pt,align=left,
+                    font=\fontsize{8.5}{10.2}\selectfont},
+  heading/.style={font=\sffamily\bfseries\fontsize{10}{12}\selectfont},
+]
+\definecolor{YasoApp}{HTML}{245B82}
+\definecolor{YasoControl}{HTML}{70516F}
+
+\foreach \shift/\suffix/\title in {0/R/Real execution,9/I/Ideal execution}{
+  \begin{scope}[xshift=\shift*.95cm]
+    \node[heading,anchor=west] at (0,.5) {\title};
+    \draw[box] (0,0) -- (8.1,0) -- (8.1,-.7) -- (.85,-.7)
+      -- (.85,-11.3) -- (0,-11.3) -- cycle;
+    \node at (4.05,-.35) {Environment $\mathcal Z$};
+    \node[rotate=90,text=YasoApp] at (.24,-9.7) {$\pid=\pk$};
+    \draw[draw=YasoApp,line width=.6pt,decorate,
+          decoration={brace,amplitude=3.2pt}]
+      (.7,-10.95) -- (.7,-8.45);
+    \coordinate (cmd\suffix) at (3.5,0);
+    \coordinate (reply\suffix) at (7.85,0);
+    \coordinate (envclock\suffix) at (.425,-11.3);
+  \end{scope}
+}
+
+% The protocol algorithms run inside the real ledger functionality.
+\node[box,minimum width=4.6075cm,minimum height=7.125cm]
+  (ledger) at (5.675,-7.55) {};
+\node at (5.675,-4.5) {{\large $\FLedger[\Pi]$}};
+\node[align=center] at (5.675,-6.6)
+  {Executes the protocol $\Pi$\\[7pt]
+   $\CRS,\ \Gen$\\[3pt]$\Schedule$\\[3pt]
+   $\ComputationStep$\\[3pt]$\ApplicationStep$};
+\node[align=center,text=black!70] at (5.675,-9.75)
+  {Retains $L$, keys,\\randomness, inputs,\\and local histories};
+
+% The dashed ledger is simulated state inside S, not a separate resource.
+\node[box,draw=YasoControl,fill=YasoControl!3,
+      minimum width=4.6075cm,minimum height=1.235cm]
+  (sim) at (14.675,-4.45) {};
+\node[text=YasoControl,align=center] at (13.3,-4.45)
+  {Simulator\\$\mathcal S$};
+\node[box,dashed,draw=YasoControl,minimum width=2.25cm,
+      minimum height=.7cm] at (15.6,-4.45)
+  {$\FLedger[\Pi]$\\[-1pt]{\fontsize{7.5}{9}\selectfont simulated}};
+\node[box,minimum width=4.6075cm,minimum height=2.945cm]
+  (mpc) at (14.675,-9.75) {};
+\node at (14.675,-8.85) {{\large $\FMPC[G]$}};
+\node[align=center] at (14.675,-9.85)
+  {$(\sigma_s,y_s,\phi_s)$\\[3pt]$=F_s(\sigma_{s-1},x_s)$};
+\node[text=black!70] at (14.675,-10.8) {Retains private state $\sigma_s$};
+
+% With the dummy adversary suppressed, these two outside interfaces match.
+\foreach \suffix/\target/\shift in {R/ledger/0,I/sim/9}{
+  \begin{scope}[xshift=\shift*.95cm]
+    \draw[controlflow] (3.5,-.7) -- (\target.north -| cmd\suffix);
+    \draw[controlflow] (\target.north -| reply\suffix) -- (7.85,-.7);
+    \node[labeltext,text=YasoControl,anchor=west] at (3.58,-1.6)
+      {$\Register(\Class)$, $\Read$\\$\Activate(\pk)$, $\Post(\pk,m)$\\Corruption};
+    \node[labeltext,text=YasoControl,anchor=east,align=right] at (7.77,-2.95)
+      {$\pk$, ledger $L$\\Exposed keys, randomness,\\inputs and histories};
+  \end{scope}
+}
+
+% Application messages are addressed by pid at the environment boundary.
+\foreach \shift in {0,9}{
+  \begin{scope}[xshift=\shift*.95cm]
+    \draw[appflow] (3.25,-8.65) -- (.85,-8.65)
+      node[midway,above,text=YasoApp] {$\pk$};
+    \draw[appflow] (3.25,-9.35) -- (.85,-9.35)
+      node[midway,above,text=YasoApp] {$(s,F_s,\boldsymbol{\pid}_s)$};
+    \draw[appflow] (.85,-10.05) -- (3.25,-10.05)
+      node[midway,above,text=YasoApp] {$\Input(u)$};
+    \draw[appflow] (3.25,-10.75) -- (.85,-10.75)
+      node[midway,above,text=YasoApp] {$y_{s,j}$};
+  \end{scope}
+}
+
+% Only S uses the ideal task's adversarial interface and registration helpers.
+\coordinate (innercmd) at (12.5,0);
+\coordinate (innerreply) at (16.85,0);
+\draw[controlflow] (sim.south -| innercmd) -- (mpc.north -| innercmd);
+\draw[controlflow] (mpc.north -| innerreply) -- (sim.south -| innerreply);
+\node[labeltext,text=YasoControl,anchor=west] at (12.58,-5.85)
+  {$\Register$, $\Announce$, $\Proceed$\\
+   $\CommitInput$, $\CorruptInput$\\Corruption};
+\node[labeltext,text=YasoControl,anchor=east,align=right,font=\fontsize{8}{10}\selectfont] at (16.77,-7.25)
+  {$\pk,\widetilde c,\tau,\sigsk,\rho_{\mathsf{sig}}$\\
+   $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\Input notices / indices\\
+   $\phi_s$; corrupt outputs/records};
+
+% Thin clock connections are visually secondary to the message flows.
+\foreach \suffix/\target/\xpos in {R/ledger/5.675,I/mpc/14.675}{
+  \node[box,draw=black!40,text=black!65,minimum width=1.5cm,
+        minimum height=.6cm] (clock\suffix) at (\xpos,-12.2) {$\FClock$};
+  \draw[clockflow] (envclock\suffix)
+    -- (envclock\suffix |- clock\suffix.west) -- (clock\suffix.west)
+    node[midway,above,text=black!65]{\scriptsize tick};
+  \coordinate (poll\suffix) at ({\xpos-.26},0);
+  \coordinate (time\suffix) at ({\xpos+.26},0);
+  \draw[clockflow] (\target.south -| poll\suffix)
+    -- (clock\suffix.north -| poll\suffix)
+    node[midway,left,text=black!65]{\scriptsize poll};
+  \draw[clockflow] (clock\suffix.north -| time\suffix)
+    -- (\target.south -| time\suffix)
+    node[midway,right,text=black!65]{\scriptsize time};
+}
+\node[text=black!70] at (8.55,-12.95)
+  {$\boldsymbol{\pid}_s=
+       (\boldsymbol{\pid}^{\mathsf{in}}_s,
+        \boldsymbol{\pid}^{\mathsf{out}}_s)$};
+\end{tikzpicture}

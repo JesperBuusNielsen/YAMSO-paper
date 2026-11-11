@@ -6,6 +6,8 @@ Section~\ref{sec:overview-functionality}.  Its participants are application
 pids.  A public rule chooses the successive Boolean circuits from earlier
 public outputs; each circuit updates a private state and supplies private
 outputs to its recipients.
+Its application I/O and its separate interface to the simulator appear
+on the right of Figure~\ref{fig:model-simulation}.
 
 \subsection{Reactive tasks}
 \label{sec:reactive-task}
@@ -48,7 +50,9 @@ Figure~\ref{fig:protocol-steps}: $\pid=(\ncek,\sigvk)$.
 The ideal task uses these strings as identifiers.  It samples the NCE
 registration string using $\SimNCE$ and gives the associated explanation
 material to the adversary, together with the independently generated
-signing key and its tape.  These values contain no application inputs.
+signing key and its tape.  These are the extra registration values on
+the upward arrow from $\FMPC$ to $\mathcal S$ in
+Figure~\ref{fig:model-simulation}; they contain no application inputs.
 In the realization proof, they let the simulator explain the keys and
 tapes exposed by the implementation without choosing the application's
 pids itself.
@@ -89,9 +93,11 @@ $\sigma=\epsilon$; public outputs $(\phi_s)$; and $\NextRound=1$.
 Keep an ordered registry with each pid's corruption flag and application
 record.  This record contains all its input arrivals and determined
 outputs, including their times and any pending deliveries.
-For each announced round retain $F_s$, its two ordered pid vectors, and
-its announcement-delivery tick $\ReadyTick_s$.  Allocated pids remain
-reserved.  Execution uses Figure~\ref{fig:mpc-execution}.
+For each announced round retain $F_s$, the pair
+$\boldsymbol{\pid}_s=(\boldsymbol{\pid}^{\mathsf{in}}_s,
+\boldsymbol{\pid}^{\mathsf{out}}_s)$ of ordered input-provider and
+output-recipient lists, and its announcement-delivery tick $\ReadyTick_s$.
+Allocated pids remain reserved.  Execution uses Figure~\ref{fig:mpc-execution}.
 
 \begin{description}
   \item[$\Register()$ from the adversary.]
@@ -117,8 +123,7 @@ reserved.  Execution uses Figure~\ref{fig:mpc-execution}.
     $\boldsymbol{\pid}^{\mathsf{in}}_s$ and the next $h_s$ to the
     output-recipient vector $\boldsymbol{\pid}^{\mathsf{out}}_s$,
     in registration order.  Reserve them and set $\ReadyTick_s=r+1$.
-    Give $(s,F_s,\boldsymbol{\pid}^{\mathsf{in}}_s,
-      \boldsymbol{\pid}^{\mathsf{out}}_s,\ReadyTick_s)$ to the adversary.
+    Give $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$ to the adversary.
 
   \item[$\Proceed(s)$ from the adversary.]
     Require $s=\NextRound$, an announced round with
@@ -189,8 +194,7 @@ and committed values $\CommittedInput_{s,a}$, using $\bot$ for unset values.
         deliveries in their records.  Set $\NextRound=s+1$.
       \item For each $s$ with $r=\ReadyTick_s$, in increasing $s$, output
         \[
-          (\Ready,s,F_s,a,\boldsymbol{\pid}^{\mathsf{in}}_s,
-                            \boldsymbol{\pid}^{\mathsf{out}}_s)
+          (s,F_s,\boldsymbol{\pid}_s)
         \]
         to each honest $\pid^{\mathsf{in}}_{s,a}$, in increasing $a$.
         Record these outputs in the corresponding application records.

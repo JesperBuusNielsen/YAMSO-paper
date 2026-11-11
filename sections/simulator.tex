@@ -1,9 +1,11 @@
 \section{Simulator}
 \label{sec:simulator}
 
-We describe a simulator $\mathcal S$ that runs the real-world adversary
-while interacting with $\FMPC$.  It simulates the public ledger, the
-universal-sampler parameters and oracle, and the information disclosed
+We describe the simulator $\mathcal S$ on the right of
+Figure~\ref{fig:model-simulation}, for the dummy-adversary execution.
+It interacts with $\FMPC$, accepts the environment's ledger commands,
+and returns the corresponding simulated replies.  It simulates the public
+ledger, the universal-sampler parameters and oracle, and the information disclosed
 on corruption.  It learns each public round circuit and its input-provider
 and output-recipient assignments when they are announced, and follows the
 simulated communication schedule.  It receives the public outputs
@@ -59,8 +61,8 @@ checks pass.
     the application pid, and gives the ciphertext, explanation material,
     signing key, and signing-key generation tape to the simulator.
     Use this supplied tuple in the simulated ledger registration.
-    The simulator withholds the helper material from the real-world
-    adversary until the protocol requires a disclosure.  Only application
+    The simulator keeps the helper material private and uses it to
+    generate the prescribed protocol disclosures.  Only application
     registrations have signing keys; the input-encryption keys published
     in a round sample are separate.
 
@@ -90,9 +92,9 @@ checks pass.
     When the simulated ledger allocates round $s$, call $\Announce(s)$.
     The ideal and simulated registries use the same application pids
     in the same order, so their input-provider and output-recipient
-    vectors agree.  The ideal task delivers the resulting $\Ready$
-    notifications at the next tick; record the corresponding public
-    computations in the simulated application histories.
+    vectors agree.  The ideal task delivers $(s,F_s,\boldsymbol{\pid}_s)$
+    to the honest input-provider pids at the next tick; record the
+    corresponding public computations in the simulated application histories.
 
     Call $\Proceed(s)$ in the clock interval preceding the simulated
     input phase.  At the next tick, the ideal task freezes the same
@@ -124,7 +126,7 @@ checks pass.
       (a,\SimState_U)
         \sample\SimRO^{\SimSample}(\SimState_U,q).
     \]
-    The adversary still evaluates the public $\Sample$ locally.
+    The environment evaluates the public $\Sample$ locally.
     $\SimSample$ is the source supplied to $\SimSetup$ and $\SimRO$,
     not an additional programming interface.
 
