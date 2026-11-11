@@ -17,27 +17,32 @@ their memoized source $\SimSample$ and simulated party behaviour.
 Each reduction includes the environment's local sampling computations.
 
 Each hybrid internally runs the ideal computation, giving its reduction
-the actual inputs, private outputs, and states $\sigma_s$.  This is proof
-bookkeeping: these private values are neither exposed to the adversary or
-environment nor supplied to the implementable simulator.  The public
-outputs $\phi_s$ are supplied to that simulator by $\FMPC$.
+the actual secret inputs, private outputs, and states $\sigma_s$.
+This is proof bookkeeping: these private values are neither exposed to
+the adversary or environment nor supplied to the implementable simulator.
+The public input components and outputs $\ypub_s$ are available to that
+simulator through the ideal interface.
 In every hybrid, the circuit rule is
-$F_s=G(s,\phi_1,\ldots,\phi_{s-2})$, and announcements, commitments,
-and private deliveries use the same clock rules.
+$F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$, with $\xpub_t$ the committed
+public input vector.  Announcements, commitments, and private deliveries
+use the same clock rules.
 
 \paragraph{Input authentication.}
 Application registration samples genuine signing keys.  Until a
 provider is corrupted, an accepted signed record not produced by its
 prescribed signing step gives a one-time signature forgery.  The record
-binds the session, I/O round, provider, exact sample description, and
-ciphertext.  Stop at the first such forgery; a reduction need not answer
+binds the session, I/O round, provider, exact sample description, public
+input component, and ciphertext.  Stop at the first such forgery; a
+reduction need not answer
 a subsequent corruption of its challenge signer.
 After an honest record is irrevocably posted, later signing-key
 disclosure cannot replace it or reopen the deadline.
 If corruption precedes the honest posting, the adversary may instead
-choose its signed ciphertext.  The simulator interprets that ciphertext
-using the receiver key obtained from a dummy full-NCE explanation.
-Missing records have the prescribed zero default.
+choose both its public component and signed ciphertext.  The simulator
+interprets the ciphertext using the receiver key obtained from a dummy
+full-NCE explanation.  Failed secret decryption leaves the accepted
+public component unchanged.  Without an accepted record, the input pair is
+$(0^{\ell_{s,a}},\epsilon)$.
 
 \paragraph{Nonce freshness.}
 First establish that the service has not already answered the eventual
@@ -67,7 +72,7 @@ then transfers through the indistinguishable hybrids below.
     non-committing deliveries, and state ciphertexts
     $c_s\sample\Enc(\statepk_{s+1},0^{|\sigma_s|})$.
     Each simulated encoding is programmed with the complete public
-    evaluation result $(z_s,c_s,\phi_s)$.
+    evaluation result $(z_s,c_s,\ypub_s)$.
     Selected sharings are completed only when the simulated input
     encoding is available.
 
@@ -85,17 +90,20 @@ then transfers through the indistinguishable hybrids below.
         Retain the returned decryption key internally.  Use it with
         $\delta_{s,a}$ to interpret any subsequently selected adversarial
         ciphertext, including the circuit's zero-default rule.
-        Submit the interpreted value to the internal ideal computation
-        when its signed record is first accepted, before input closure.
+        Pair that interpreted secret value with the public component of
+        the same signed record and submit the pair to the internal ideal
+        computation when the record is first accepted, before input closure.
         This is efficient post-processing of the receiver state exposed
         by the game.  The input provider receives only its actual
         registered state and history, not this input-decryption key.
       \item[Honest posting first.]
-        Call $\EncryptMessage(x_{s,a})$ at posting and sign the returned
-        ciphertext with the provider's genuine signing key and fresh
-        coins.  If the provider is later corrupted, call $\CorruptSender$
+        Call $\EncryptMessage(\xsec_{s,a})$ at posting.  Sign the record
+        containing the unchanged public component $\xpub_{s,a}$ and the
+        returned ciphertext with the provider's genuine signing key and
+        fresh coins.  If the provider is later corrupted, call $\CorruptSender$
         and disclose the returned encryption tape with its retained
-        protocol state.  The committed input and ciphertext stay fixed.
+        protocol state.  Both committed input components and the
+        ciphertext stay fixed.
     \end{description}
     Both branches use the same full-NCE simulator and one encryption
     challenge.  In the first, the challenge ciphertext is discarded;
@@ -128,7 +136,7 @@ then transfers through the indistinguishable hybrids below.
     It never needs the challenge secret key: the successor's
     $\SimGarble$ uses only topology, and its $\SimEncode$ is given the
     prescribed output rather than decrypting the incoming ciphertext.
-    In particular, $\phi_s$ still comes from the internal ideal
+    In particular, $\ypub_s$ still comes from the internal ideal
     computation.  No real garbling containing that key is present.
     This is the use of IND-CPA security from
     Definition~\ref{def:ind-cpa}.
@@ -137,14 +145,14 @@ then transfers through the indistinguishable hybrids below.
     Rewrite the experiment to choose each output pad $r_i$ when its
     round is prepared, and later use
     \[
-      z_i=y_i\oplus r_i.
+      z_i=\ysec_i\oplus r_i.
     \]
     This is the same distribution as choosing uniform $z_i$
     first and explaining the hidden value afterward.  Before their
     exposure or use, the simulated deliveries and garblings reveal
-    no information about the pads.  This also holds with public outputs
-    $\phi_s$: an unexposed pad has not influenced the transcript used
-    to choose the application inputs.  Corruption after preparation exposes the
+    no information about the pads.  This also holds with public input and
+    output histories: an unexposed pad has not influenced the transcript
+    used to choose the application inputs.  Corruption after preparation exposes the
     already-chosen pad; a recipient corrupt before preparation is assigned
     its pad when that preparation occurs.
 
@@ -160,10 +168,11 @@ then transfers through the indistinguishable hybrids below.
     $\RoundCircuit_s$ deterministic.  Honest encryption does not depend
     on these hidden tapes, so correctness bounds its decryption-failure
     probability; introduce an abort on this negligible event.
-    For adversarial ciphertexts, the ideal input was defined using the
-    same decryption key, tape, and default rule as $\RoundCircuit_s$.
+    For adversarial ciphertexts, the ideal secret input was defined using
+    the same decryption key, tape, and default rule as $\RoundCircuit_s$.
     Their interpreted values therefore agree by construction, without
-    a correctness claim for malformed ciphertexts.
+    a correctness claim for malformed ciphertexts.  Public components
+    are selected from the signed records outside the garbling.
     Each augmented circuit $\RoundCircuit_s$ is now fully specified
     when its garbling is requested.
 
@@ -177,23 +186,26 @@ then transfers through the indistinguishable hybrids below.
     $\GarbleCircuit(\RoundCircuit_s)$.  Once the complete input is fixed, call
     $\EncodeInput(\xi_s)$, where $\xi_s$ consists entirely of public
     bits: the accepted input-ciphertext records or default records,
-    incoming state ciphertext, and successor public key.
+    incoming state ciphertext, and successor public key.  The clear
+    public input components are not inputs to this garbling.
 
-    Honest ciphertexts decrypt to the committed input strings outside
-    the correctness abort.  Adversarial ciphertexts and defaults have
-    exactly the interpretation used to supply inputs to $\FMPC$.
+    Honest ciphertexts decrypt to the committed secret input components
+    outside the correctness abort.  Adversarial ciphertexts and defaults
+    have exactly the interpretation used to supply secret inputs to
+    $\FMPC$.
     Since all state ciphertexts also carry the correct states, we obtain
     \[
       \RoundCircuit_s(\xi_s)=
-      \bigl(y_s\oplus r_s,\,
-        \Enc(\statepk_{s+1},\sigma_s;\rho_s),\phi_s\bigr),
+      \bigl(\ysec_s\oplus r_s,\,
+        \Enc(\statepk_{s+1},\sigma_s;\rho_s),\ypub_s\bigr),
     \]
     with $r_s$ the vector of output pads.  This is precisely the output
     previously supplied to $\SimEncode$.  The first round uses the
-    prescribed empty state.  In particular, the public output used to
-    choose subsequent circuits agrees with the application computation.
-    After its challenge, the reduction continues the execution using
-    the resulting public history and rule $G$.  Future circuit descriptions
+    prescribed empty state.  The public input vector already agrees
+    through signed-record selection, and the public output now agrees
+    with the application computation.  After its challenge, the reduction
+    continues the execution using this public input/output history and
+    rule $G$.  Future circuit descriptions
     and sampling requests may be chosen adaptively; they need not be fixed
     before the challenge.
 
@@ -270,8 +282,9 @@ then transfers through the indistinguishable hybrids below.
     At this point all sampled data, keys, and party messages have their
     real distributions.  Robust reconstruction and correctness of
     encryption and garbling identify the delivered outputs and state
-    transitions, including public outputs $\phi_s$ and their resulting
-    circuit descriptions, with the real protocol.
+    transitions, including the public input/output histories
+    $(\xpub_s,\ypub_s)$ and their resulting circuit descriptions, with
+    the real protocol.
 \end{description}
 
 Each sweep ranges over the polynomially many rounds or roles in the

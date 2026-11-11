@@ -35,25 +35,35 @@ specified precisely in Section~\ref{sec:ledger-execution}.
 \label{sec:overview-functionality}
 
 The intended task $\FMPC$ maintains an initially empty secret state.
-In I/O round $s$, a public Boolean circuit computes
+In I/O round $s$, provider $a$ supplies an input pair
+$x_{s,a}=(\xsec_{s,a},\xpub_{s,a})$.  The secret components form
+$\xsec_s$, and a public Boolean circuit computes
 \[
-  (\sigma_s,y_s,\phi_s)=F_s(\sigma_{s-1},x_s).
+  (\sigma_s,\ysec_s,\ypub_s)=F_s(\sigma_{s-1},\xsec_s).
 \]
-Here $\phi_s$ is public, and a fixed rule chooses
-$F_s=G(s,\phi_1,\ldots,\phi_{s-2})$.
-Its public layout assigns an input string of specified length to each
-input provider and one output bit to each output recipient.  These
-application parties are the participants of the ideal task; computation
-committees belong to its implementation.  Write
+Here $\ysec_s$ is the vector of private recipient outputs and $\ypub_s$
+is one common public string.  A fixed rule selects the circuit from
+preceding public inputs and outputs:
+\[
+  F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\leq t\leq s-2}\bigr),
+\]
+where $\xpub_t$ lists the accepted public input components in provider
+order.  The circuit's public layout assigns a secret input string of
+specified length to each provider and one private output bit to each recipient.
+These application parties are the participants of the ideal task;
+computation committees belong to its implementation.  Write
 $\boldsymbol{\pid}_s=(\boldsymbol{\pid}^{\mathsf{in}}_s,
 \boldsymbol{\pid}^{\mathsf{out}}_s)$ for the ordered input-provider and
 output-recipient lists.  The circuit notification is
 $(s,F_s,\boldsymbol{\pid}_s)$; a provider identifies its input index by
 its position in $\boldsymbol{\pid}^{\mathsf{in}}_s$.
+The application call $\Input((s,a,x))$ specifies the I/O round, provider
+index, and pair $x=(\xsec,\xpub)$.
 
-Inputs and recipient outputs remain private, while participation is
-visible.  Missing inputs have the all-zero value of the prescribed
-length.  The input commitment must match the protocol: an honest posting
+Secret inputs and recipient outputs remain private, while participation
+and public input components are visible.  Missing submissions have an
+all-zero secret component of the prescribed length and an empty public
+component.  The input commitment must match the protocol: an honest posting
 fixes its contribution, whereas corruption before posting permits the
 provider to change or omit it.  Corruption reveals the affected party's
 retained inputs and already-determined outputs, including outputs pending
@@ -74,8 +84,8 @@ On the right, $\Announce$ fixes the circuit and participant assignments;
 input providers receive their notification at $\ReadyTick_s$.
 The command $\Proceed$ schedules the input window for the next tick.
 The simulator uses $\CommitInput$ to fix an honest provider's already
-selected input without learning it, and $\CorruptInput$ to supply a
-corrupted provider's contribution.  Registration returns the NCE
+selected input without learning its secret part, and $\CorruptInput$ to
+supply a corrupted provider's contribution.  Registration returns the NCE
 ciphertext $\widetilde c$ and explanation information $\tau$, together
 with a signing key $\sigsk$ and its generation tape $\rho_{\mathsf{sig}}$;
 these let the simulator explain later corruptions.
@@ -123,11 +133,14 @@ takes place inside the garbling.
   \item[Signed encrypted inputs.]
     The sample gives each provider a fresh input-encryption public key
     and embeds the matching secret key inside the garbled circuit.
-    The provider encrypts its private input string and signs the
-    ciphertext for this round and sample.  The first valid signed record
-    before the deadline fixes its public input record; absence or failed
-    decryption means the all-zero application input.  Thus ciphertext
-    bits are public, but their plaintext is used only inside the circuit.
+    The provider encrypts its secret input string and signs the
+    ciphertext together with its public input for this round and sample.
+    The first valid signed record before the deadline fixes both.
+    Absence means a zero secret input and an empty public input; failed
+    decryption defaults only the secret component to zero.
+    The public component enters the history used by $G$ directly, so it
+    can describe a later circuit without being processed by a garbling.
+    The ciphertext plaintext is used only inside the circuit.
     Non-committing encryption supports explaining the retained encryption
     randomness when an honest sender is later corrupted.
     Figure~\ref{fig:signed-encrypted-inputs} gives the submission and
@@ -137,8 +150,8 @@ takes place inside the garbling.
   \item[Conditional label release.]
     For each garbled input wire, two disjoint committees hold robust
     sharings of its two labels.  The sampler encrypts each share under
-    its member's delivery key.  Once the complete public input is fixed,
-    the committee for each selected bit releases its label: honest
+    its member's delivery key.  Once the garbled circuit's input bits are
+    fixed, the committee for each selected bit releases its label: honest
     members post their secret keys, from which everyone recovers their
     shares.  Robust reconstruction tolerates faulty or missing shares
     within the threshold.  The other committee's honest members remain
@@ -169,7 +182,7 @@ takes place inside the garbling.
       c_s=\PKE.\Enc(\statepk_{s+1},\sigma_s;\rho_s).
     \]
     The successor decrypts this ciphertext inside its own garbling.
-    Evaluation also reveals the public application output $\phi_s$.
+    Evaluation also reveals the public application output $\ypub_s$.
     No speaking intermediary holds the state, and neighboring garblings
     need no shared wire labels.  The incoming ciphertext and successor
     public key are late public inputs, so the current garbling can be
@@ -180,9 +193,9 @@ takes place inside the garbling.
     hidden randomness.
 
   \item[Private outputs from public evaluation.]
-    The sampled circuit masks each output bit as $z_i=y_i\oplus r_i$
-    using an independent uniform pad $r_i$.
-    Its sample also contains an RNCE encryption of the pad $r_i$ under
+    The sampled circuit masks each private output bit as
+    $z_{s,j}=\ysec_{s,j}\oplus r_{s,j}$ using an independent uniform pad
+    $r_{s,j}$.  Its sample also contains an RNCE encryption of this pad under
     the recipient's delivery key.  Everyone can evaluate and decode the
     garbling, while the recipient privately recovers its output without
     speaking.  Figure~\ref{fig:distribution-circuit} prepares the pad
@@ -200,22 +213,23 @@ circuit and role at the following tick, before its input-posting round.
 Figure~\ref{fig:role-allocation} gives the allocation rule.
 
 After preparing round 1, the protocol repeats four phases: prepare the
-successor, collect the current round's signed encrypted inputs, release
+successor, collect the current round's signed input records, release
 the selected labels, and evaluate and deliver outputs.  Each phase
 occupies one ledger round.  The input-posting deadline fixes the public
 string whose labels will be released.  Everyone then derives the same
 garbled evaluation result; no additional party posts the state ciphertext,
-masked outputs, or public output $\phi_s$.
+masked outputs, or public output $\ypub_s$.
 Figure~\ref{fig:protocol-schedule} specifies the start
 ticks and public reconstruction, and Figure~\ref{fig:protocol-steps} gives
 the party algorithms.
 
 Preparing the successor needs its circuit description and participant
 keys, but neither its private inputs nor the current round's outgoing
-state ciphertext.  The rule $F_{s+1}=G(s+1,\phi_1,\ldots,\phi_{s-1})$
+state ciphertext.  The rule
+$F_{s+1}=G\bigl(s+1,(\xpub_t,\ypub_t)_{1\leq t\leq s-1}\bigr)$
 provides this lookahead without preparing the entire future computation.
-Applications whose next circuit uses their most recent public output
-can insert identity circuits in the even rounds, as described in
+Applications whose next circuit uses their most recent public inputs and
+outputs can insert identity circuits in the even rounds, as described in
 Section~\ref{sec:reactive-task}.
 Each sample has bounded size, while setup leaves the total number of I/O rounds
 unfixed.

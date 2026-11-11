@@ -8,15 +8,18 @@ and returns the corresponding simulated replies.  It simulates the public
 ledger, the universal-sampler parameters and oracle, and the information disclosed
 on corruption.  It learns each public round circuit and its input-provider
 and output-recipient assignments when they are announced, and follows the
-simulated communication schedule.  It receives the public outputs
-$\phi_s$, but not honest parties' input strings or private output bits,
-nor the functionality's secret state.  An allowed
+simulated communication schedule.  It learns the public input components
+and the public outputs $\ypub_s$, but not honest parties' secret input
+components, private output bits, or the functionality's secret state.  An allowed
 corruption supplies the affected party's retained inputs and already-computed
 outputs, including outputs pending private delivery.
-Private inputs may arrive throughout the execution.  For each
-$(\Input,\pid,j)$ notice, record the current simulated ledger position.
+Application inputs may arrive throughout the execution.  For each input
+notice, record the current simulated ledger position.  A notice
+$(\Input,\pid,j,s,a,\xpub)$ also supplies the public component of entry
+$j$; store it under $(\pid,j)$ together with $s,a$.
+A notice $(\Input,\pid,j,\bot)$ only records an arrival.
 At the start of the input phase, $\SelectedInput$ identifies the selected
-entry of each provider's frozen list without revealing its value.
+entry of each provider's frozen list without revealing its secret component.
 On corruption, combine the disclosed input contents with these recorded
 positions to reconstruct the ledger's retained input history.
 An honest input becomes committed when its simulated posting occurs.
@@ -26,7 +29,7 @@ timing.
 Preparation produces a simulated garbling, input-encryption keys, and
 non-committing ciphertexts.  Later, the simulator fixes the public masked
 outputs and a zero-state ciphertext, combines them with the prescribed
-public output $\phi_s$, obtains one simulated input encoding, and uses
+public output $\ypub_s$, obtains one simulated input encoding, and uses
 share completion and receiver explanations to release it.
 Input encryption uses one full-NCE simulator, supporting both sender
 and receiver explanations.  Sender explanations handle corruption after
@@ -100,11 +103,12 @@ checks pass.
     input phase.  At the next tick, the ideal task freezes the same
     input-arrival prefix and reports its selected indices.  During the
     input phase, use $\CommitInput$ and $\CorruptInput$ as below.
-    The closing tick determines $\phi_s$ and the outputs; honest
+    The closing tick determines $\ypub_s$ and the outputs; honest
     private outputs are delivered two ticks later, at the end of the
-    simulated output phase.  Use $\phi_s$ in subsequent simulated
-    task announcements only when the ledger's public reconstruction
-    has reached that round's evaluation.
+    simulated output phase.  Use the committed public input vector
+    $\xpub_s$ and the output $\ypub_s$ in subsequent simulated task
+    announcements only when the ledger's public reconstruction has
+    reached that round's evaluation.
 
   \item[Public sampling.]
     Maintain a table indexed by exact distribution-circuit descriptions
@@ -157,7 +161,7 @@ checks pass.
     \]
     Publish its simulated public key in the sample and retain its
     ciphertext for the provider's posting.  This invocation uses the
-    prescribed input length and the full-NCE simulator.
+    prescribed secret-input length and the full-NCE simulator.
     Independently sample and retain the input-decryption tape
     $\delta_{s,a}$ used by Figure~\ref{fig:round-circuit}.
     These keys are separate from registered delivery keys and the
@@ -211,34 +215,36 @@ checks pass.
     provided no honest input ciphertext was posted.
 
   \item[Simulate honest input postings.]
-    At an honest provider's activation in the input phase, use the input
-    selected from its frozen list.  If one is present, take its retained
-    ciphertext $\widetilde c^{\mathsf{in}}_{s,a}$ and honestly sign
-    the record
+    At an honest provider's activation in the input phase, use the entry
+    selected from its frozen list.  If one is present, retrieve its public
+    component $\xpub_{s,a}$ from the corresponding input notice and take
+    the retained ciphertext $\widetilde c^{\mathsf{in}}_{s,a}$.
+    With $\ctx_{s,a}=(\sid,s,a,\SampleCircuit_s)$, honestly sign
     \[
-      \InputRecord(\sid,s,a,\SampleCircuit_s,
+      \InputRecord(\ctx_{s,a},\xpub_{s,a},
          \widetilde c^{\mathsf{in}}_{s,a}).
     \]
-    Post the ciphertext and signature atomically.  Save the signing
-    randomness; it is never changed.  The public ciphertext bits determine
-    the selected label committees, without knowledge of the input string.
+    Post this record and signature atomically.  Save the signing
+    randomness; it is never changed.  The public component is carried in
+    clear.  The ciphertext record's bits select this provider's
+    input-label committees, without knowledge of its secret input component.
     For an activation during the input phase, call
     $\CommitInput(s,a)$ at this posting.  An activation forced by the
     closing-tick sweep instead uses the ideal task's automatic commitment
     at that tick.  If the provider is subsequently corrupted, obtain its
-    committed input $x_{s,a}$ from $\FMPC$ and compute
+    committed pair $(\xsec_{s,a},\xpub_{s,a})$ from $\FMPC$ and compute
     \[
       (\widetilde\rho_R,\widetilde\rho_S)
-        \sample\ExplainNCE(\SimState^{\mathsf{in}}_{s,a},x_{s,a}).
+        \sample\ExplainNCE(\SimState^{\mathsf{in}}_{s,a},\xsec_{s,a}).
     \]
     Disclose $\widetilde\rho_S$ as its encryption randomness, together
     with its genuine signing key, key-generation tape, signing randomness,
     already-fixed unused delivery key, and retained private-call history.
     The input provider never held the input-decryption secret key or its
     generation tape, so these are not part of this disclosure.
-    Save the explanation for every later disclosure.  The ciphertext and
-    its signature stay unchanged.  Do not submit a replacement input to
-    $\FMPC$: the honest input was already accepted, and later corruption
+    Save the explanation for every later disclosure.  The public component,
+    ciphertext, and signature stay unchanged.  Do not submit a replacement
+    input to $\FMPC$: the honest input was already accepted, and later corruption
     cannot change it.
 
     If no matching input is present, the honest provider remains silent.
@@ -252,33 +258,39 @@ checks pass.
   \item[Interpret corrupt postings and close inputs.]
     For a provider corrupted before an honest posting, interpret its
     first accepted signed record when that record appears during the
-    input phase.  Decrypt its ciphertext using $\inputsk_{s,a}$ and
-    the retained $\delta_{s,a}$, replacing decryption or length failure
-    by $0^{\ell_{s,a}}$, exactly as the plaintext circuit does.
-    Submit this value through $\CorruptInput(s,a,x)$ before the closing
-    tick.  Irrevocable posting and first-record selection fix this
-    contribution.  The unused private input supplied before corruption
-    has not committed a value.
+    input phase.  Read its public component $\xpub_{s,a}$ and decrypt
+    its ciphertext using $\inputsk_{s,a}$ and the retained $\delta_{s,a}$.
+    Set $\xsec_{s,a}$ to the decrypted value, replacing decryption or
+    secret-length failure by $0^{\ell_{s,a}}$, exactly as the plaintext
+    circuit does.  Keep the accepted public component also in this case.
+    Submit $\CorruptInput(s,a,(\xsec_{s,a},\xpub_{s,a}))$ before the closing
+    tick.  Irrevocable posting and first-record selection fix both
+    components.  The input supplied before corruption has not committed
+    either component.
     Contributions already committed by honest postings remain fixed.
     At the closing tick, the ideal task commits the remaining honest
-    selected inputs and supplies zero defaults for missing contributions.
-    Simulate the forced honest postings using these same selected entries.
+    selected pairs and supplies $(0^{\ell_{s,a}},\epsilon)$ for missing
+    contributions.  Simulate the forced honest postings using these same
+    selected entries.  Record the public components selected from the
+    accepted postings as $\xpub_s$, using $\epsilon$ for a provider
+    with no accepted record.  This committed vector supplies the public input
+    history used by $G$.
     Outputs are determined before any honest label committee speaks.
 
   \item[Fix the public evaluation result.]
-    At input closure, obtain the public output $\phi_s$ from $\FMPC$.
+    At input closure, obtain the public output $\ypub_s$ from $\FMPC$.
     The successor sample is already available.  Choose independent
     uniform masked bits $z_i$ for still-honest recipients.  For an
-    already-corrupt recipient, obtain $y_i$ from $\FMPC$ and set $z_i=y_i\oplus r_i$
+    already-corrupt recipient, obtain $\ysec_i$ from $\FMPC$ and set $z_i=\ysec_i\oplus r_i$
     using its fixed pad.
     Choose fresh encryption coins and form
     \[
       c_s\sample\Enc(\statepk_{s+1},0^{|\sigma_s|}),
       \qquad
-      X_s\sample\SimEncode(\SimState_s,(z,c_s,\phi_s)).
+      X_s\sample\SimEncode(\SimState_s,(z,c_s,\ypub_s)).
     \]
     Here $z$ is the vector of masked bits, $|\sigma_s|$ is the
-    publicly specified length of the updated state, and $\phi_s$ has
+    publicly specified length of the updated state, and $\ypub_s$ has
     the public-output length specified by $F_s$.
     Make this one encoding call before any honest label committee
     speaks, and keep its result fixed.  The same public $c_s$ is the
@@ -300,8 +312,9 @@ checks pass.
     The unselected committees' honest members remain silent and protected;
     their initially corrupt members retain the shares already fixed.
     Simulate reconstruction and public evaluation with the released
-    encoding.  Its public result is $(z,c_s,\phi_s)$; subsequent
-    circuit descriptions are obtained from the prescribed rule $G$.
+    encoding.  Its public result is $(z,c_s,\ypub_s)$; together with the
+    committed public inputs $\xpub_s$, this extends the history from which
+    $G$ determines subsequent circuit descriptions.
 
   \item[Private outputs and further rounds.]
     Application notifications and private outputs are delivered by
@@ -309,11 +322,11 @@ checks pass.
     output-recipient corruptions whenever they occur.  If a recipient is first corrupted after its pad
     ciphertext is included in a sample but before $z_i$ is fixed,
     choose a uniform pad $r_i$ and explain the ciphertext accordingly.
-    Later use its ideal output to set $z_i=y_i\oplus r_i$.
+    Later use its ideal output to set $z_i=\ysec_i\oplus r_i$.
     If the recipient is first corrupted after $z_i$ has been fixed,
-    obtain its output $y_i$ from $\FMPC$ and explain the pad ciphertext as
+    obtain its output $\ysec_i$ from $\FMPC$ and explain the pad ciphertext as
     \[
-      r_i=z_i\oplus y_i.
+      r_i=z_i\oplus\ysec_i.
     \]
     The ideal output is already determined at this point by the ordering
     above.  In every case, disclose the explained receiver key and complete
@@ -325,7 +338,7 @@ checks pass.
     Continue with the already-prepared successor, preparing one further
     round before its evaluation.  If the public circuit sequence includes
     an identity round, simulate it by the same procedure with no
-    application inputs or private outputs and with $\phi_s=\epsilon$.
+    application inputs or private outputs and with $\ypub_s=\epsilon$.
     Keep all explanations for parties whose states have been exposed,
     whether by posting or corruption, but do not
     disclose a garbler tape, input-decryption secret key, or state-transfer

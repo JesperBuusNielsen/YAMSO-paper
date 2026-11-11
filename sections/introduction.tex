@@ -64,12 +64,14 @@ parties' private data rather than rely on corruption eventually making
 it available.
 
 \paragraph{The task and construction.}
-We consider ongoing MPC with private state.  In each I/O round a public
-Boolean circuit maps that state and new private inputs to an updated
-state, private outputs for designated recipients, and a public output.
-A fixed public rule selects the next circuits from these public outputs.
-We use the UC framework to state this ideal computation and the ledger
-assumption.
+We consider ongoing MPC with private state and inputs split into secret
+and public components.  In each I/O round a public Boolean circuit maps
+the state and new secret inputs to an updated state, private outputs for
+designated recipients, and one common public output.  A fixed public rule
+selects the next circuits from the preceding public inputs and outputs.
+Public inputs can therefore describe future circuits without passing
+through a garbled computation.  We use the UC framework to state this
+ideal computation and the ledger assumption.
 
 Our construction uses an independent garbling for each I/O round.
 A \emph{universal sampler} has public parameters $U$.  Given the
@@ -92,14 +94,15 @@ For each input wire, the sampler robustly secret-shares the labels for
 member's delivery key.  Members recover these shares from the public
 sample without any participant serving as garbler or dealer.
 
-Each input provider supplies a whole private string in one message.
-The sample publishes a fresh input-encryption public key for that
-provider and embeds the matching decryption key inside the garbled
-circuit.  The provider encrypts its input and signs the ciphertext for
-this particular round and sample.  Only its first valid signed
-ciphertext before the deadline counts; absence means the all-zero
-input.  Revealing the signing key afterward cannot change the accepted
-ciphertext.  Signatures authenticate the input; encryption hides it.
+Each input provider supplies a secret string and a public string in one
+message.  The sample publishes a fresh input-encryption public key for
+that provider and embeds the matching decryption key inside the garbled
+circuit.  The provider encrypts the secret component and signs the
+ciphertext together with the public component for this round and sample.
+Only its first valid signed record before the deadline counts; absence
+means an all-zero secret input and an empty public input.  Revealing the
+signing key afterward cannot change the accepted record.  The public
+component enters the history used to choose later circuits.
 
 The committees now select labels according to the \emph{public bits of
 the ciphertext}, not the hidden input.  Members of a selected committee
@@ -108,7 +111,7 @@ reconstructing its label.  Honest members of the other committee remain
 silent, protecting the unused label.  Although the ciphertext bits are
 public, both labels must not be released: that would permit evaluation
 on a different ciphertext.  The garbled circuit decrypts the accepted
-ciphertexts internally and then computes on the private inputs.
+ciphertexts internally and then computes on the secret inputs.
 
 The central step for ongoing computation is to transfer \emph{encrypted
 state}, rather than link secret labels across rounds.  Each sampled
@@ -119,7 +122,7 @@ encrypt its outgoing state under the successor's public key.
 The successor decrypts that ciphertext internally.  The task provides
 one round of lookahead for circuit selection; inserting identity rounds
 accommodates applications that choose their next circuit from their
-latest output.
+latest public inputs and outputs.
 Adaptive garbling~\cite{HemenwayEtAl2016AdaptiveGarbling} accommodates
 inputs fixed after the garbling is published, including this successor
 key and the incoming state ciphertext.  This breaks the dependence on

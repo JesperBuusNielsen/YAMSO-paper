@@ -49,7 +49,7 @@ The algorithms have the following interfaces.
   \item[$\ApplicationStep(\pk,\sk,L,x)\to(y,m)$.]
     Compute an application party's private output $y$ and message $m$.
     Either may be $\bot$.  The input $x$ is the party's ordered
-    cumulative private input list, frozen at the start of the round.
+    cumulative input list, frozen at the start of the round.
     Each entry pairs an input with its arrival position in $L$.
 \end{description}
 
@@ -95,6 +95,10 @@ Public task data, including the next circuit and its input assignments,
 are determined from $L$ by the protocol.  A party can propose such data
 in its ledger message; the protocol determines which proposals to use.
 The ledger does not interpret circuit descriptions or decide their validity.
+Its $\Input(u)$ command stores a protocol-dependent payload $u$.
+In our MPC protocol, $u=(s,a,x)$ identifies a round, an input provider,
+and a pair $x=(\xsec,\xpub)$; $\ApplicationStep$ posts the public
+component together with an encryption of the secret component.
 
 \subsection{Ledger execution}
 \label{sec:ledger-execution}
@@ -117,7 +121,7 @@ the round.  Each tick after the first triggers an internal $\EndRound$
 sweep: the ledger activates the remaining eligible honest parties,
 records missing posts, and delivers the round's private outputs before
 starting the next round.
-Registration is available at any time.  Private application inputs may
+Registration is available at any time.  Application inputs may
 arrive between activations and are included in the next round's input
 snapshots.
 

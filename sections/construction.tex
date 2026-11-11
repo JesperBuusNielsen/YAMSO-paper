@@ -327,18 +327,17 @@ $\Labels.\Recover(\InputBits_s,\boldsymbol c,\widehat{\boldsymbol{\sk}})$.
 \subsection{Signed encrypted inputs}
 \label{sec:signed-encrypted-inputs}
 
-
 We instantiate input encryption with a full NCE scheme from
 Section~\ref{sec:nce}, and write $\SNCE$ for its algorithms in this use.
 The simulator uses the receiver explanation if an input provider is
 corrupted before posting; after an honest posting it uses the sender
 explanation.  Section~\ref{sec:hybrids} gives these two cases.
 
-The $\Inputs$ sub-protocol turns a provider's private input into a
-signed ciphertext and selects the public bit string used to release
-its garbled input labels.  Figure~\ref{fig:signed-encrypted-inputs}
-separates message preparation and selection from the submission
-interaction.
+The $\Inputs$ sub-protocol signs a provider's public input together with
+an encryption of its secret input.  Selection returns the public
+component and the ciphertext bits used to release garbled input labels.
+Figure~\ref{fig:signed-encrypted-inputs} separates message preparation and
+selection from the submission interaction.
 
 \begin{figure}[tbp]
 \centering
@@ -346,15 +345,17 @@ interaction.
 \begin{minipage}{0.95\textwidth}
 \small
 \SubprotocolHeading{\Inputs}
-Use SNCE (Section~\ref{sec:nce}) for plaintext length $\ell$, with
+Use SNCE (Section~\ref{sec:nce}) for secret-input length $\ell$, with
 prescribed ciphertext length $\kappa$, and one-time signatures
-(Section~\ref{sec:signatures}).
+(Section~\ref{sec:signatures}).  Fix a public polynomial bound
+$b_{\mathsf{pub}}(\lambda)$ on public-input length and write
+$\mathcal X_\ell=\bits^\ell\times\bits^{\le b_{\mathsf{pub}}(\lambda)}$.
 The public context $\ctx=(\sid,s,a,\SampleCircuit_s)$ specifies the session,
 I/O round, input-provider index $a$, and exact sampling description.
 Write
 \[
-  \InputRecord(\ctx,c)=
-    \langle\InputRecord,\sid,s,a,\SampleCircuit_s,c\rangle.
+  \InputRecord(\ctx,\xpub,c)=
+    \langle\InputRecord,\sid,s,a,\SampleCircuit_s,\xpub,c\rangle.
 \]
 All tuples use fixed unambiguous encodings.
 Let $\DefaultInput=0\mathbin\|0^\kappa$.
@@ -363,26 +364,28 @@ Let $\DefaultInput=0\mathbin\|0^\kappa$.
 \begin{description}
   \item[$\Inputs.\Prepare(\inputpk,\sigsk,\ctx,x)\to R$.]
     Input: an SNCE public key $\inputpk$, a signing key $\sigsk$,
-    the context $\ctx$, and $x\in\bits^\ell$.
+    the context $\ctx$, and $x=(\xsec,\xpub)\in\mathcal X_\ell$.
     Output: an encoded signed record $R\in\bits^*$.
-    Sample $c\sample\SNCE.\Enc(\inputpk,x)$, set
-    $q=\InputRecord(\ctx,c)$, and independently sample
+    Sample $c\sample\SNCE.\Enc(\inputpk,\xsec)$, set
+    $q=\InputRecord(\ctx,\xpub,c)$, and independently sample
     $\sig\sample\Sign(\sigsk,q)$.
     Return $R=(q,\sig)$.
 
-  \item[$\Inputs.\Select(\sigvk,\ctx,\mathcal R)\to z$.]
+  \item[$\Inputs.\Select(\sigvk,\ctx,\mathcal R)\to(z,\xpub)$.]
     Input: a verification key $\sigvk$, the context $\ctx$, and
     a finite ordered list $\mathcal R$ of bit strings.
-    Output: $z\in\bits^{1+\kappa}$.
+    Output: $(z,\xpub)\in\bits^{1+\kappa}\times
+      \bits^{\le b_{\mathsf{pub}}(\lambda)}$.
     Scan $\mathcal R$ in order for the first record decoding as
     $(q,\sig)$ with
     \[
-      q=\InputRecord(\ctx,c),\qquad
+      q=\InputRecord(\ctx,\xpub,c),\qquad
       c\in\bits^\kappa,\qquad
+      \xpub\in\bits^{\le b_{\mathsf{pub}}(\lambda)},\qquad
       \Verify(\sigvk,q,\sig)=\top.
     \]
-    Return $1\mathbin\|c$ for that record.
-    If there is no such record, return $\DefaultInput$.
+    Return $(1\mathbin\|c,\xpub)$ for that record.
+    If there is no such record, return $(\DefaultInput,\epsilon)$.
 \end{description}
 
 \GadgetHeading{Interactions}
@@ -391,7 +394,7 @@ Let $\DefaultInput=0\mathbin\|0^\kappa$.
     $\pk=(\ncek,\sigvk)$: the application pid of the input provider
     identified in $\ctx$.
     $\sk$: its protected secret material, containing $\sigsk$.
-    $x\in\bits^\ell\cup\{\bot\}$: its selected private input, or
+    $x\in\mathcal X_\ell\cup\{\bot\}$: its selected input pair, or
     $\bot$ if none was supplied.
     $\inputpk$: the SNCE public key for this provider in $\GarbledRound_s$.
     $r_{\mathsf{in}}$: the ledger round for input posting;
@@ -404,7 +407,7 @@ Let $\DefaultInput=0\mathbin\|0^\kappa$.
     \end{description}
 \end{description}
 \end{minipage}}
-\caption{$\Inputs$: signed input encryption and public input selection.}
+\caption{$\Inputs$: signed public inputs and encrypted secret inputs.}
 \label{fig:signed-encrypted-inputs}
 \end{figure}
 
@@ -415,11 +418,12 @@ Each input provider uses a fresh signing key for this single submission.
 
 The protocol fixes one common input-posting ledger round
 $r_{\mathsf{in}}$ for I/O round $s$ and schedules its providers in that
-round.  A provider supplies a private input through $\Input((s,a,u))$.
-Its $\ApplicationStep$ sets $x=u$ for the first entry $(j,(s,a,u))$
-in its current frozen input list $x_{\pk,r}$ with $u\in\bits^\ell$,
-and sets $x=\bot$ if there is none.  Here $j$ is the recorded ledger
-arrival position.  It supplies $x$ to $\Inputs.\SubmitInput$.
+round.  A provider supplies its pair $x=(\xsec,\xpub)$ through
+$\Input((s,a,x))$.  Its $\ApplicationStep$ selects the first entry
+$(j,(s,a,x))$ in its frozen input list $x_{\pk,r}$ with
+$x\in\mathcal X_{\ell_{s,a}}$, or $\bot$ if none exists.
+Here $j$ is the recorded ledger arrival position.
+It supplies this pair to $\Inputs.\SubmitInput$.
 The call to $\Inputs.\Prepare$ uses disjoint portions of the party's
 fixed private step tape for encryption and signing.  These coins
 remain in its retained history.
@@ -428,18 +432,22 @@ At snapshot $L_{r_{\mathsf{in}}+1}$, readers form $\mathcal R$ from the
 payloads $M$ of records $(\Message,r_{\mathsf{in}},\pk',M)$, in ledger
 order, and compute
 \[
-  z_{s,a}\gets\Inputs.\Select(\sigvk,\ctx,\mathcal R).
+  (z_{s,a},\xpub_{s,a})\gets\Inputs.\Select(\sigvk,\ctx,\mathcal R).
 \]
-This selected string supplies the provider's portion of $\InputBits_s$.
+Only $z_{s,a}$ supplies the provider's portion of $\InputBits_s$;
+$\xpub_s=(\xpub_{s,a})_a$ enters the public history used by $G$.
+If no record is accepted, the default is secret input $0^{\ell_{s,a}}$ and
+public input $\epsilon$.  If an accepted record's ciphertext fails to
+decrypt, only its secret input defaults; its signed public input remains.
 All input selections are fixed before the label-release round.
 
 \subsection{The plaintext round circuit}
 \label{sec:round-circuit}
 
 The application circuit $F_s$ updates the private state and produces
-private recipient outputs and a public output $\phi_s$.
+private recipient outputs $\ysec_s$ and one public output $\ypub_s$.
 We use the reactive-task rule of Section~\ref{sec:reactive-task}:
-$F_s=G(s,\phi_1,\ldots,\phi_{s-2})$, with empty history for $s=1,2$.
+$F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr)$, with empty history for $s=1,2$.
 The plaintext circuit $\RoundCircuit_s$ in
 Figure~\ref{fig:round-circuit} surrounds it with input decryption,
 state transfer, and output masking.  Square brackets name parameters
@@ -464,7 +472,7 @@ Public parameters are $s\geq1$ and the Boolean application circuit
 Here $\nu_{s-1},\nu_s$ are the old and new state lengths,
 $g_s$ is the number of input providers, $h_s$ the number of private output
 bits, and $\ell_s^{\mathsf{pub}}$ is the length of the public output
-$\phi_s$.  Initially $\nu_0=0$.  Empty input and output lists are allowed.
+$\ypub_s$.  Initially $\nu_0=0$.  Empty input and output lists are allowed.
 Write $\kappa_{s,a}$ for the SNCE ciphertext length for
 $\ell_{s,a}$-bit inputs, and $\kappa_s^{\mathsf{state}}$ for the
 IND-CPA ciphertext length for $\nu_s$-bit states.
@@ -490,30 +498,30 @@ parameters, and bracketed values occupy fixed constant-gate positions.
     encoding for $\nu_s$-bit messages.
     Concatenate these input fields in the displayed order, with providers
     in increasing index order; let $m_s$ be their total bit length.
-    Output: $(\MaskedOutputs_s,c_s,\phi_s)\in
+    Output: $(\MaskedOutputs_s,c_s,\ypub_s)\in
       \bits^{h_s}\times\bits^{\kappa_s^{\mathsf{state}}}
       \times\bits^{\ell_s^{\mathsf{pub}}}$.
 
     \begin{enumerate}
       \item For each $a$, write $z_{s,a}=b_a\mathbin\|c_a^{\mathsf{in}}$.
-        If $b_a=0$, set $x_a=0^{\ell_{s,a}}$.
+        If $b_a=0$, set $\xsec_{s,a}=0^{\ell_{s,a}}$.
         Otherwise compute
         \[
-          x_a\gets\SNCE.\Dec(\inputsk_{s,a},c_a^{\mathsf{in}};\delta_{s,a}),
+          \xsec_{s,a}\gets\SNCE.\Dec(\inputsk_{s,a},c_a^{\mathsf{in}};\delta_{s,a}),
         \]
         and replace any result outside $\bits^{\ell_{s,a}}$ by $0^{\ell_{s,a}}$.
       \item If $s=1$, set $\sigma=\epsilon$.
         Otherwise compute $\sigma\gets\PKE.\Dec(\statesk_s,c_{s-1})$.
         If $\sigma\notin\bits^{\nu_{s-1}}$, return the all-zero output.
-      \item Compute $(\sigma',y,\phi_s)=F_s(\sigma,(x_a)_a)$.
+      \item Compute $(\sigma',\ysec_s,\ypub_s)=F_s(\sigma,(\xsec_{s,a})_a)$.
       \item Compute
         \[
           c_s\gets\PKE.\Enc(\statepk_{s+1},\sigma';\rho_s).
         \]
         If the result is not in $\bits^{\kappa_s^{\mathsf{state}}}$,
         return the all-zero output.
-        Set $\MaskedOutputs_s=y\oplus\boldsymbol r_s$ and return
-        $(\MaskedOutputs_s,c_s,\phi_s)$.
+        Set $\MaskedOutputs_s=\ysec_s\oplus\boldsymbol r_s$ and return
+        $(\MaskedOutputs_s,c_s,\ypub_s)$.
     \end{enumerate}
     The all-zero output is
     $(0^{h_s},0^{\kappa_s^{\mathsf{state}}},0^{\ell_s^{\mathsf{pub}}})$.
@@ -524,6 +532,7 @@ parameters, and bracketed values occupy fixed constant-gate positions.
 \end{figure}
 
 The $m_s$ input wires are served by $\Labels$.
+Public application inputs $\xpub_s$ are processed outside this circuit.
 The state-transfer key pair for round $s$ uses message length
 $\nu_{s-1}$, so the successor's key is configured for $\nu_s$.
 All these widths are determined before either late input value is known.
@@ -634,7 +643,7 @@ on its input tape.  The oracle access belongs to $\Sample^H$.
 
 The resulting bundle supplies the public keys used by $\Inputs$ and
 the ciphertext arrays used by $\Labels$.  Later evaluation of
-$\GC_s$ produces $(\MaskedOutputs_s,c_s,\phi_s)$.
+$\GC_s$ produces $(\MaskedOutputs_s,c_s,\ypub_s)$.
 Recipient $j$ decrypts $\OutputPackets_{s,j}$ to recover its pad
 $r_{s,j}$ and unmasks the corresponding output bit.
 The raw round-circuit description, secret keys, encoding key, and
@@ -649,11 +658,11 @@ provider or an output recipient of $F_s$; a computation role is membership
 in a coin or label committee.  Allocated pids are never reassigned.
 
 The circuit-selection rule is the fixed public $G$ of
-Section~\ref{sec:reactive-task}.  Once the preceding public outputs needed
-for $F_s=G(s,\phi_1,\ldots,\phi_{s-2})$ are available, the protocol can
+Section~\ref{sec:reactive-task}.  Once the preceding public inputs and outputs needed
+for $F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr)$ are available, the protocol can
 allocate its participants.  Figure~\ref{fig:role-allocation} performs one
 such allocation.  Figure~\ref{fig:protocol-schedule} specifies when to
-call it and how to compute the preceding public outputs.
+call it and how to recover the preceding public inputs and outputs.
 
 \begin{figure}[p]
 \centering
@@ -709,7 +718,7 @@ The resulting vectors are the arguments of the existing gadgets:
 $\Coin.\Prepare$ uses $\boldsymbol{\pk}^{\mathsf{coin}}_s$, and
 $\SampleCircuit_s$ encodes both application-pid vectors and
 $\boldsymbol{\pk}_s$.  Allocation fixes these fields before $Q_s$ is
-released.  The public output $\phi_s$ has no recipient allocation.
+released.  The public output $\ypub_s$ has no recipient allocation.
 
 Keys may register before the circuit is known.  Once the circuit and
 enough keys are available, its input providers receive their circuit and
@@ -724,12 +733,13 @@ share.  All later committees therefore use previously unallocated pids.
 We now connect the gadgets through ledger rounds.  Figure~\ref{fig:protocol-schedule}
 computes public values and assignments from the successive ledger
 snapshots.  At each snapshot it first completes the preceding phase's
-public computation and then attempts one allocation.  The public outputs
-determine the later circuits through $G$.
+public computation and then attempts one allocation.  The accepted public
+inputs and computed public outputs determine the later circuits through $G$.
 $\Schedule$ returns the resulting assignments and
 permitted speakers.  Together with $\CRS$ and the party algorithms of
 Figure~\ref{fig:protocol-steps}, these specify $\Pi$.
-The schemes, their public length bounds, $n,t$, and $G$ are fixed
+The schemes, their public length bounds (including $b_{\mathsf{pub}}$),
+$n,t$, and $G$ are fixed
 parameters of $\Pi$.
 
 There are four phases.  A coin phase releases the nonce and makes its
@@ -788,10 +798,11 @@ The phase sequence starts with $\CoinPhase(1)$ and then repeats
           \item[$\InputPhase(s)$.]
             For each $a$, set $\ctx_{s,a}=(\sid,s,a,\SampleCircuit_s)$ and
             \[
-              z_{s,a}\gets\Inputs.\Select\bigl(\sigvk_{s,a},\ctx_{s,a},
+              (z_{s,a},\xpub_{s,a})\gets\Inputs.\Select\bigl(\sigvk_{s,a},\ctx_{s,a},
                     \PostedMessages(L_j,j-1)\bigr).
             \]
-            Set $\InputRecords_s=(z_{s,a})_a$.  Concatenate
+            Set $\InputRecords_s=(z_{s,a})_a$ and
+            $\xpub_s=(\xpub_{s,a})_a$.  Concatenate
             $(\InputRecords_s,c_{s-1},\statepk_{s+1})$ to obtain
             $\InputBits_s$, in the wire order of
             Figure~\ref{fig:round-circuit}.
@@ -802,12 +813,12 @@ The phase sequence starts with $\CoinPhase(1)$ and then repeats
             Compute $X_s\gets\Labels.\Recover
               (\InputBits_s,\LabelPackets_s,(\widehat{\boldsymbol{\sk}}_w)_w)$.
             Evaluate $\Eval(\GC_s,X_s)$ and decode its output as
-            $(\MaskedOutputs_s,c_s,\phi_s)$ with the lengths of
+            $(\MaskedOutputs_s,c_s,\ypub_s)$ with the lengths of
             Figure~\ref{fig:round-circuit}.
           \item[$\OutputPhase(s)$.] No public calculation.
         \end{description}
-      \item Set $k=|\Roles|+1$.  If all required public outputs exist,
-        compute $F_k=G(k,\phi_1,\ldots,\phi_{k-2})$ and replace
+      \item Set $k=|\Roles|+1$.  If all required public inputs and outputs exist,
+        compute $F_k=G\bigl(k,(\xpub_t,\ypub_t)_{1\le t\le k-2}\bigr)$ and replace
         $\Roles$ by $\Allocate(L_j,F_k,\Roles)$.
         The required history is empty for $k=1,2$.
       \item Start the next phase in slot $j$ and record its start tick,
@@ -915,9 +926,10 @@ step before using it.
     \]
     If $\pk=\pid^{\mathsf{in}}_{s,a}$ in $\InputPhase(s)$, use
     $\GarbledRound_s$ from the table.
-    Let $u$ be the first string of length $\ell_{s,a}$ appearing in a
-    matching entry $(j,(s,a,u))$ of the frozen input list $x$,
-    or $\bot$ if absent.  With $\ctx_{s,a}=(\sid,s,a,\SampleCircuit_s)$,
+    Let $u$ be the first pair in
+    $\bits^{\ell_{s,a}}\times\bits^{\le b_{\mathsf{pub}}(\lambda)}$
+    appearing in a matching entry $(j,(s,a,u))$ of the frozen input
+    list $x$, or $\bot$ if absent.  With $\ctx_{s,a}=(\sid,s,a,\SampleCircuit_s)$,
     run the interaction
     \[
       \Inputs.\SubmitInput(\pk,\sk,L_r;

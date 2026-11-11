@@ -54,7 +54,7 @@
   (mpc) at (14.675,-9.75) {};
 \node at (14.675,-8.85) {{\large $\FMPC[G]$}};
 \node[align=center] at (14.675,-9.85)
-  {$(\sigma_s,y_s,\phi_s)$\\[3pt]$=F_s(\sigma_{s-1},x_s)$};
+  {$(\sigma_s,\ysec_s,\ypub_s)$\\[3pt]$=F_s(\sigma_{s-1},\xsec_s)$};
 \node[text=black!70] at (14.675,-10.8) {Retains private state $\sigma_s$};
 
 % With the dummy adversary suppressed, these two outside interfaces match.
@@ -77,9 +77,9 @@
     \draw[appflow] (3.25,-9.35) -- (.85,-9.35)
       node[midway,above,text=YasoApp] {$(s,F_s,\boldsymbol{\pid}_s)$};
     \draw[appflow] (.85,-10.05) -- (3.25,-10.05)
-      node[midway,above,text=YasoApp] {$\Input(u)$};
+      node[midway,above,text=YasoApp] {$\Input((s,a,x))$};
     \draw[appflow] (3.25,-10.75) -- (.85,-10.75)
-      node[midway,above,text=YasoApp] {$y_{s,j}$};
+      node[midway,above,text=YasoApp] {$\ysec_{s,j}$};
   \end{scope}
 }
 
@@ -88,13 +88,13 @@
 \coordinate (innerreply) at (16.85,0);
 \draw[controlflow] (sim.south -| innercmd) -- (mpc.north -| innercmd);
 \draw[controlflow] (mpc.north -| innerreply) -- (sim.south -| innerreply);
-\node[labeltext,text=YasoControl,anchor=west] at (12.58,-5.85)
+\node[labeltext,text=YasoControl,anchor=west] at (12.58,-5.75)
   {$\Register$, $\Announce$, $\Proceed$\\
    $\CommitInput$, $\CorruptInput$\\Corruption};
-\node[labeltext,text=YasoControl,anchor=east,align=right,font=\fontsize{8}{10}\selectfont] at (16.77,-7.25)
+\node[labeltext,text=YasoControl,anchor=east,align=right,font=\fontsize{7.5}{9}\selectfont] at (16.77,-7.25)
   {$\pk,\widetilde c,\tau,\sigsk,\rho_{\mathsf{sig}}$\\
-   $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\Input notices / indices\\
-   $\phi_s$; corrupt outputs/records};
+   $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\$\xpub$; input notices / indices\\
+   $(\xpub_s,\ypub_s)$\\corrupt outputs / records};
 
 % Thin clock connections are visually secondary to the message flows.
 \foreach \suffix/\target/\xpos in {R/ledger/5.675,I/mpc/14.675}{
@@ -113,7 +113,8 @@
     node[midway,right,text=black!65]{\scriptsize time};
 }
 \node[text=black!70] at (8.55,-12.95)
-  {$\boldsymbol{\pid}_s=
+  {$x=(\xsec,\xpub),\qquad
+    \boldsymbol{\pid}_s=
        (\boldsymbol{\pid}^{\mathsf{in}}_s,
         \boldsymbol{\pid}^{\mathsf{out}}_s)$};
 \end{tikzpicture}
