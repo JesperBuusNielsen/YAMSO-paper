@@ -19,7 +19,7 @@ respectively, and qualify algorithm names when needed, as in $\SNCE.\Dec$.
 
 For $b\in\bits$, the experiment $\CPAGame^b_{\mathcal A}(1^\lambda)$
 samples $(\pk,\sk)\sample\KeyGen(1^\lambda)$, gives
-$(1^\lambda,\pk)$ to $\mathcal A$, and offers these commands:
+$(1^\lambda,\ell,\pk)$ to $\mathcal A$, and offers these commands:
 \begin{description}
   \item[$\Challenge(m_0,m_1)$.]
     For $m_0,m_1\in\bits^\ell$, return
@@ -46,3 +46,6 @@ such that
   \right|\leq\varepsilon_{\mathcal A}(\lambda).
 \]
 \end{definition}
+
+The negligible security bound is uniform over polynomially bounded
+public message lengths, as in Definition~\ref{def:nce}.

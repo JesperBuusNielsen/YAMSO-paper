@@ -37,8 +37,10 @@ chooses a message $m\in\bits^\ell$ after seeing $\pk$,
   \Pr\bigl[\Dec(\sk,c)=m\bigr]\geq 1-\negl(\lambda),
 \]
 where $(\pk,\sk)\sample\KeyGen(1^\lambda)$,
-$m\sample\mathcal B(1^\lambda,\pk)$, and
-$c\sample\Enc(\pk,m)$.  The probability includes the decryption coins.
+$m\sample\mathcal B(1^\lambda,\ell,\pk)$, and
+$c\sample\Enc(\pk,m)$.  The probability includes the decryption coins.  For every fixed polynomial
+bound on the public message length, the correctness error is uniform
+over all lengths within that bound.
 
 Write $\rho_R$ and $\rho_S$ for the \emph{complete} uniform random
 tapes of key generation and encryption, respectively, each of a fixed
