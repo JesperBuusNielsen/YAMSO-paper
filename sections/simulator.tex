@@ -41,6 +41,17 @@ its number of initially corrupt members and aborts if this exceeds the
 sharing threshold $t$.  Below we describe the execution when these
 checks pass.
 
+Figure~\ref{fig:simulator-patches} names the seven replacements defining
+$\mathcal S$.  All have subscript $0$ in the simulator.  The ledger's
+registration order, clock handling, scheduling, first-record selection,
+reconstruction, and public evaluation follow the protocol figures, with
+the indicated replacements for their cryptographic data.  The descriptions
+below specify the retained state and the timing of these replacements.
+Section~\ref{sec:hybrids} changes them one at a time while keeping the
+entire surrounding execution explicit.
+
+\input{figures/simulator-patches}
+
 \begin{description}
   \item[Registration and retained state.]
     Simulate the initial random corruption experiment for computation
@@ -251,8 +262,8 @@ checks pass.
     A later corruption before the deadline may still allow an adversarial
     posting.  Reproduce arbitrary postings by corrupt parties and apply
     the protocol's signature, context, length, and deadline checks.
-    Abort if a record accepted before its provider's signing-key exposure
-    was not produced by its honest signing step.  The authentication
+    Abort if a message accepted before its provider's signing-key exposure
+    was not previously signed by its honest signing step.  The authentication
     argument below bounds this event.
 
   \item[Interpret corrupt postings and close inputs.]
@@ -317,8 +328,13 @@ checks pass.
     $G$ determines subsequent circuit descriptions.
 
   \item[Private outputs and further rounds.]
-    Application notifications and private outputs are delivered by
-    $\FMPC$, not computed by $\mathcal S$.  Handle chosen
+    For a pid still honest at its delivery tick, application notifications
+    and private outputs are delivered by $\FMPC$.  If an honest activation
+    queued an output and that pid is corrupted before the tick, keep the
+    corresponding simulated $\PendingOutputs$ entry.  At the tick, supply
+    that output to the corrupted pid through the adversarial interface,
+    as the ledger does.  Notifications are public; a private output is
+    available from the recipient's corruption record.  Handle chosen
     output-recipient corruptions whenever they occur.  If a recipient is first corrupted after its pad
     ciphertext is included in a sample but before $z_i$ is fixed,
     choose a uniform pad $r_i$ and explain the ciphertext accordingly.

@@ -122,14 +122,17 @@ exposure in the cited definitions.
 \label{def:nce}
 The scheme has non-committing security with tape exposure if there exists
 an efficient simulator $\mathcal S=(\SimNCE,\ExplainNCE)$ such that,
-for every efficient adversary $\mathcal A$, there is a negligible
-function $\varepsilon_{\mathcal A}$ satisfying
+for every efficient adversary $\mathcal A$ and polynomial $b$, there is a
+negligible function $\varepsilon_{\mathcal A,b}$ satisfying
 \[
   \left|
     \Pr[\NCEReal_{\mathcal A}(1^\lambda)=1]
     -\Pr[\NCEIdeal_{\mathcal A,\mathcal S}(1^\lambda)=1]
-  \right|\leq\varepsilon_{\mathcal A}(\lambda).
+  \right|\leq\varepsilon_{\mathcal A,b}(\lambda).
 \]
+The bound holds uniformly for every public length
+$0\leq\ell\leq b(\lambda)$.  The same algorithms take $\ell$ as a public
+parameter; the game fixes it before invoking $\mathcal A$.
 \end{definition}
 
 \begin{definition}[Sender and receiver restrictions]
