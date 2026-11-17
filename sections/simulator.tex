@@ -1,5 +1,8 @@
-\section{Simulator}
+\section{Simulator Overview}
 \label{sec:simulator}
+
+The detailed simulator is specified in Section~\ref{sec:simulator-details},
+after the protocol and the ideal task.
 
 We describe the simulator $\mathcal S$ on the right of
 Figure~\ref{fig:model-simulation}, for the dummy-adversary execution.
@@ -40,17 +43,6 @@ Whenever a nonce or label committee is assigned, $\mathcal S$ checks
 its number of initially corrupt members and aborts if this exceeds the
 sharing threshold $t$.  Below we describe the execution when these
 checks pass.
-
-Figure~\ref{fig:simulator-patches} names the seven replacements defining
-$\mathcal S$.  All have subscript $0$ in the simulator.  The ledger's
-registration order, clock handling, scheduling, first-record selection,
-reconstruction, and public evaluation follow the protocol figures, with
-the indicated replacements for their cryptographic data.  The descriptions
-below specify the retained state and the timing of these replacements.
-Section~\ref{sec:hybrids} changes them one at a time while keeping the
-entire surrounding execution explicit.
-
-\input{figures/simulator-patches}
 
 \begin{description}
   \item[Registration and retained state.]
@@ -328,13 +320,10 @@ entire surrounding execution explicit.
     $G$ determines subsequent circuit descriptions.
 
   \item[Private outputs and further rounds.]
-    For a pid still honest at its delivery tick, application notifications
-    and private outputs are delivered by $\FMPC$.  If an honest activation
-    queued an output and that pid is corrupted before the tick, keep the
-    corresponding simulated $\PendingOutputs$ entry.  At the tick, supply
-    that output to the corrupted pid through the adversarial interface,
-    as the ledger does.  Notifications are public; a private output is
-    available from the recipient's corruption record.  Handle chosen
+    Application notifications and private outputs to still-honest pids are
+    delivered by $\FMPC$.  The simulator also reproduces a queued ledger
+    output to a pid corrupted before its delivery tick, using the output
+    learned on corruption; Section~\ref{sec:simulator-details} specifies this case.  Handle chosen
     output-recipient corruptions whenever they occur.  If a recipient is first corrupted after its pad
     ciphertext is included in a sample but before $z_i$ is fixed,
     choose a uniform pad $r_i$ and explain the ciphertext accordingly.
