@@ -12,7 +12,7 @@
 \node at (9,-.325) {Environment $\mathcal Z$};
 \draw[entity,draw=YasoControl] (0,-3.25) rectangle (18,-20.05);
 \node[font=\sffamily\bfseries\large,text=YasoControl] at (9,-3.7)
- {Simulator $\mathcal S$: replacements in the protocol};
+ {Simulator $\mathcal S$: protocol execution with seven hooks};
 \draw[entity] (0,-23.65) rectangle (18,-24.35);
 \node at (9,-24) {$\FMPC[G]$};
 
@@ -26,12 +26,11 @@
   Exposed keys, tapes, inputs, and local histories};
 
 \node[anchor=north west,inner sep=0pt,text width=16.8cm,align=left] at (.6,-4.25) {
-Maintain the ledger's public state and execute its scheduling, posting,
-selection, reconstruction, and evaluation rules (Figures~\ref{fig:yaso-ledger}, \ref{fig:role-allocation}--\ref{fig:protocol-steps}).
-Mirror application registration and timing through $\FMPC$; commit honest
-postings and submit extracted corrupt inputs.  $\FMPC$ delivers outputs
-to honest pids; simulate queued deliveries to pids corrupted before their
-delivery tick, as described in the text.
+Execute the ledger and protocol of Sections~\ref{sec:ledger}--\ref{sec:construction}
+with the seven hooks below.  Section~\ref{sec:simulator-logistics} specifies
+how ideal-task events are connected to this execution.  The hook definitions
+in Section~\ref{sec:simulator-hooks} are the only definitions of the
+cryptographic changes.
 };
 \draw[black!20] (.6,-5.9)--(17.4,-5.9);
 
@@ -39,62 +38,50 @@ delivery tick, as described in the text.
 \renewcommand{\arraystretch}{1.12}
 \setlength{\tabcolsep}{0pt}
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{13.4cm}@{}}
-$\Sampling_0$ & Use $\SimSetup$ and $\SimRO$ with a memoized sample source.
-Before $Q_s$ is released, reserve the exact description $\SampleCircuit_s$
-for the bundle prepared below.  Sample all other descriptions honestly.
-The nonce-only sample is honest; retained nonce keys reveal $Q_s$ to $\mathcal S$.\\[7pt]
-
-$\InputEncryption_0$ & Replace the input-key generation in Figure~\ref{fig:distribution-circuit} and
-secret-input encryption in Figure~\ref{fig:signed-encrypted-inputs} by full-NCE simulation.  For an honest posting, sign
-the public input together with the reserved ciphertext; explain its sender
-tape on later corruption.  If corruption comes first, obtain a receiver key from a dummy-message
-explanation and use it to interpret accepted adversarial ciphertexts.\\[7pt]
-
-$\StateCiphertext_0$ & Generate state-transfer keys normally.
-At input closure, choose fresh coins and set
-$c_s=\PKE.\Enc(\statepk_{s+1},0^{|\sigma_s|})$.
-Supply this value to $\Garbling_0$ as the state-ciphertext output
-of Figure~\ref{fig:round-circuit}.\\[7pt]
-
-$\OutputPads_0$ & At input closure, choose the masked bit $z_i$ uniformly
-if its recipient's pad is not fixed.  On subsequent corruption, set
-$r_i=z_i\oplus\ysec_i$.  If corruption comes before closure, fix a uniform
-$r_i$ then use $z_i=\ysec_i\oplus r_i$ at closure.  Never revise a fixed
-pad or masked bit.\\[7pt]
-
-$\Garbling_0$ & In Figure~\ref{fig:distribution-circuit} use
-$(\GC_s,\SimState_s)\sample\SimGarble(1^\lambda,\Topo(\RoundCircuit_s))$.
-At input closure, call
-$X_s\sample\SimEncode(\SimState_s,(z_s,c_s,\ypub_s))$ once.
-Public reconstruction and $\Eval$ in Figure~\ref{fig:model-simulation}1 are unchanged.\\[7pt]
-
-$\Sharing_0$ & During sample preparation fix uniform shares at the
-initially corrupt positions.  Once $X_s$ is available, use
-$\CompleteShares$ for each selected label and its common encoding material.
-Pass these share packets to $\Deliveries_0$ before the selected
-members speak.\\[7pt]
-
-$\Deliveries_0$ & Replace delivery-key generation and the designated
-label/pad encryptions in Figures~\ref{fig:conditional-release}, \ref{fig:distribution-circuit}, \ref{fig:protocol-steps} by RNCE simulation.  Reserve one ciphertext per
-unexposed key and explain its packet before exposure.  Initially corrupt
-keys are genuine.  Early exposure and nonce-only or unused roles explain
-a dummy packet, discard its ciphertext, and use ordinary later encryption.
-Application registration supplies its NCE helper through $\FMPC$.\\
+\hyperref[hook:sampling]{$\Sampling_0$} &
+At setup and on oracle queries: $\Setup$, $\QueryRO$.
+At allocation: $\Reserve(s)$.  Supplies the memoized source used by the
+public-sampler simulation.\\[14pt]
+\hyperref[hook:input-encryption]{$\InputEncryption_0$} &
+In $\SampleCircuit_s$, step~1 and its input-decryption-tape draw:
+$\Prepare(s,a)$.  At an honest input posting: $\Post(s,a,\xpub)$.
+At corruption: $\Corrupt(s,a,m)$.  For a selected corrupt ciphertext:
+$\Extract(s,a,c)$.\\[14pt]
+\hyperref[hook:state-ciphertext]{$\StateCiphertext_0$} &
+At input closure: $\StateCiphertext_0(s)$ supplies the outgoing state
+ciphertext.  Defers its encryption-tape choice from sample preparation.
+The protocol's state-key generation is unchanged.\\[14pt]
+\hyperref[hook:output-pads]{$\OutputPads_0$} &
+At $\SampleCircuit_s$'s pad draw in step~2, call $\Prepare(s)$ once;
+use its returned vector as the output packets in step~4.  At input closure: $\Close(s,\boldsymbol y_s^{\mathsf{cor}})$.
+At recipient corruption: $\Corrupt(s,j,y)$.\\[14pt]
+\hyperref[hook:garbling]{$\Garbling_0$} &
+In $\SampleCircuit_s$, step~2: $\Prepare(s)$.
+At input closure: $\Encode(s,(z_s,c_s,\ypub_s))$.
+These replace garbling and input encoding.\\[14pt]
+\hyperref[hook:sharing]{$\Sharing_0$} &
+In $\SampleCircuit_s$, step~3: $\Prepare(s)$.
+After the input encoding is fixed: $\Open(s,\InputBits_s,X_s)$.
+These determine the label packets and the selected share plaintexts.\\[14pt]
+\hyperref[hook:deliveries]{$\Deliveries_0$} &
+At registration: $\Register(\Class,\beta,h)$.
+Called by the sampling, sharing, and output-pad hooks:
+$\Packet(P,m)$ and $\Bind(P,m)$.
+Owns delivery-key generation, designated ciphertexts, and receiver explanations.\\
 \end{tabular}
 };
 
 \draw[black!20] (.6,-17.0)--(17.4,-17.0);
 \node[anchor=north west,inner sep=0pt,text width=16.8cm,align=left] at (.6,-17.25) {
-\textbf{Retained state.} Record input-arrival positions and public components;
-obtain secret contents on corruption.  Save each explained key and tape once,
-and reconstruct its prescribed local histories consistently on disclosure.
+\textbf{Reading the description.} This figure is a call map.
+Section~\ref{sec:simulator-logistics} determines when calls occur;
+Section~\ref{sec:simulator-hooks} defines each hook once.
+Corruption disclosures and the abort checks are specified in
+Section~\ref{sec:simulator-checks}.
 \par\smallskip
-\textbf{Proof variants.} Restore input encryption, real state plaintexts,
-early pads and state-encryption coins, real garbling, early sharing,
-real deliveries, and finally real universal sampling.  Section~\ref{sec:hybrids-details} defines these replacements as
-complete experiments $H_1,\ldots,H_7$.  Keep the specified aborts for threshold
-failure, a previously answered designated description, and an accepted
-new signed message before key exposure; correctness aborts enter in the proof.
+\textbf{Proof.} Section~\ref{sec:hybrids-details} changes versions of these
+same hooks.  Identifying the final execution with the real protocol is a
+separate final step.
 };
 
 \draw[flow] (.35,-20.05)--(.35,-23.65);
@@ -103,15 +90,15 @@ new signed message before key exposure; correctness aborts enter in the proof.
  {$\Register(),\ \Announce(s),\ \Proceed(s)$\\
   $\CommitInput(s,a)$\\$\CorruptInput(s,a,x)$; corruption of $\pid$};
 \node[lab,anchor=east,align=right] at (17.35,-21.85)
- {$\pk,\widetilde c,\SimState_P,\sigsk,\rho_{\mathsf{sig}}$\\
+ {$\pk,\widetilde c,\tau_P,\sigsk,\rho_{\mathsf{sig}}$\\
   $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\
   Input notices with $\xpub$; $\SelectedInput$ indices\\
   $(s,\xpub_s,\ypub_s)$; corrupt outputs and records};
 \end{tikzpicture}}
 \endgroup
-\caption{The simulator of Figure~\ref{fig:model-simulation}, enlarged.
-The named entries replace operations of the protocol; application I/O
-and clock connections remain as in that figure.  The simulator uses only
-the information supplied through its ideal interface.}
+\caption{Where the simulator invokes its seven replacement hooks.
+The definitions appear once in Section~\ref{sec:simulator-hooks}; this figure
+contains their call sites.  Application I/O and clock connections are
+as in Figure~\ref{fig:model-simulation}.}
 \label{fig:simulator-patches}
 \end{figure}
