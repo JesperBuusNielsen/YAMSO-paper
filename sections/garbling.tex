@@ -23,12 +23,23 @@ consists of three polynomial-time algorithms:
     Deterministically evaluate the garbled circuit, returning
     $y\in\bits^m$ or $\bot$.
 \end{description}
-Correctness requires that, for every polynomial-size circuit family and
-every corresponding input family
-\[
+Correctness requires that, for every polynomial bound on circuit size,
+there is a negligible function $\varepsilon$ such that every circuit $C$
+within that bound satisfies
+\begin{equation}
+\label{eq:garbling-correctness}
   \Pr_{(\GC,e)\sample\Garble(1^\lambda,C)}
-  \bigl[\Eval(\GC,\Encode(e,x))=C(x)\bigr] \ge 1-\negl(\lambda).
-\]
+  \bigl[\forall x\in\bits^n:\;
+    \Eval(\GC,\Encode(e,x))=C(x)\bigr]
+    \ge 1-\varepsilon(\lambda).
+\end{equation}
+We strengthen the fixed-input correctness clause of Hemenway et al.\
+\cite[full version, Definition~1]{HemenwayEtAl2016AdaptiveGarbling}
+by requiring one sampled garbling to be correct for all inputs
+simultaneously.  This covers inputs chosen after seeing $\GC$.
+The perfect-correctness convention of Garg and Srinivasan~
+\cite[full version, Definition~3.7]{GargSrinivasan2018AdaptiveGarbling}
+also implies this requirement.
 
 The scheme is \emph{projective} if $e$ specifies two labels
 $L_{w,0},L_{w,1}$ for each input wire $w\in\{1,\ldots,n\}$ and
@@ -105,6 +116,19 @@ selection, not corruption of a garbler.
 If one-way functions exist, then projective garbling schemes with
 adaptive simulation privacy exist in the standard model.
 \end{theorem}
-This follows from the projective construction and
-\cite[full version, Corollary~2]{HemenwayEtAl2016AdaptiveGarbling}.  We use the scheme
-as a black box.
+Adaptive privacy follows from the projective construction and
+\cite[full version, Corollary~2]{HemenwayEtAl2016AdaptiveGarbling}.
+Its concrete instantiation also satisfies~\eqref{eq:garbling-correctness}.
+To see this, consider all four input-label combinations at every gate.
+For the inner encryption in Appendix~A of that paper, decryption under
+a wrong key accepts exactly when the final $\lambda$ bits of two PRF
+outputs coincide.  The acceptance condition does not involve the
+plaintext, even when that plaintext depends on a wire label.  For independently sampled
+labels its probability is negligible by PRF security.  A union bound
+over the polynomially many row tests and wire-label collisions gives
+one event outside which every gate evaluates correctly on every valid
+label combination.  Induction over gates then gives correctness for
+all inputs simultaneously.  The outer encryption has perfect
+correctness~\cite[full version, Definition~2, Figure~1, and Appendix~A]
+{HemenwayEtAl2016AdaptiveGarbling}.  We use the resulting scheme as a
+black box.

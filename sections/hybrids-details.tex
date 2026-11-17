@@ -30,6 +30,69 @@ $H_8$ & $\Sampling_0\to\Sampling_1$ & Adaptive universal sampling
 \end{tabular}
 \end{center}
 
+\paragraph{Where the failure obligations are handled.}
+Table~\ref{tab:proof-obligations} locates the bounds for
+$\PO{1}$--$\PO{9}$ of Section~\ref{sec:simulator-checks}.
+A row gives the experiment in which its argument is made, not an
+additional change to that experiment.  Deterministic agreement is
+proved up to the first failure of an earlier required check.  Thus the
+rows yield bounds on first failures, which can be combined without
+assuming all checks succeed.  The aggregate bound is transferred back
+through the guarded hybrids as explained after
+Lemma~\ref{lem:simulation-guards}.
+
+\begin{table}[tbp]
+\centering\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{.075\linewidth}p{.20\linewidth}p{.66\linewidth}@{}}
+PO & Where & Argument \\\hline
+$\PO{1}$ & $H_0$--$H_6$ &
+Bernoulli corruption bound for consecutive fresh committee blocks and a
+union bound over the blocks reached.\\
+$\PO{2}$ & Stopped $H_6$ &
+Before nonce release, RNCE privacy hides honest nonce shares; threshold
+privacy leaves the nonce uniform.  Count every sample-source query.\\
+$\PO{3}$ & $H_0$--$H_6$ &
+One-time unforgeability, stopping the reduction at target-key exposure
+or the first accepted new message.\\
+$\PO{4}$ & $H_6\to H_7$ &
+Couple the prefixes to the genuine protocol with an honest sample
+source, then apply universal-sampler consistency there.\\
+$\PO{5}$ & $H_6$ &
+RNCE correctness and robust reconstruction recover the reserved nonce.\\
+$\PO{6}$ & $H_6$ &
+Given the preceding checks and signature correctness, first-record
+selection, commitments, and defaults agree exactly.\\
+$\PO{7}$ & $H_6$ &
+RNCE correctness and robust reconstruction give the selected encoding.
+Equation~\eqref{eq:garbling-correctness} gives correct evaluation
+for the adaptively selected input.\\
+$\PO{8}$ & $H_6\to H_7$ &
+Induction on the common registry, public history, and clock ticks gives
+the same allocations, announcements, and delivery times.\\
+$\PO{9}$ & After $H_1$ and $H_6$ &
+Sender tapes are genuine after $H_1$; registered delivery-key tapes
+after $H_6$.  Local replay then agrees given the preceding checks and
+private-decryption correctness.\\
+\multicolumn{2}{@{}l}{$\BadCorrectness$ (at $H_3$)} &
+Input- and state-encryption correctness before genuine garblings are
+restored; this is the additional guard introduced in $H_3$.\\
+\end{tabular}
+\caption{Proof obligations and the experiments in which their bounds are
+established.  The full reductions remain to be written, except for the
+first NCE transition.}
+\label{tab:proof-obligations}
+\end{table}
+
+For $\PO{4}$, an honest source in $H_6$ is not by itself enough to invoke
+the sampler definition: the surrounding hybrid also uses sample-owned
+secret keys.  The comparison must first show that, until the first
+failure, its public calls and replies agree with those of the genuine
+protocol using the same honest source.  That genuine execution uses
+only public samples and registered party state, so its sample calls can
+be declared in the universal-sampler game.  This prefix comparison is
+part of Lemma~\ref{lem:remove-ideal-bookkeeping}.
+
 \subsection{Complete experiments}
 \label{sec:hybrid-experiments}
 
@@ -44,19 +107,10 @@ Probabilities include all coins of the experiment.  We do not condition
 on committees satisfying their thresholds.
 
 The first experiment $H_0$ runs $\SimExec$, but terminates with bit $0$
-if one of the simulator's following abort conditions occurs:
-\begin{description}
-  \item[$\BadThreshold$.] An assigned committee has more than $t$
-    initially corrupted members.
-  \item[$\BadEarlyQuery$.] The eventual description $\SampleCircuit_s$
-    has already been answered before the simulator reserves it.
-  \item[$\BadPublicData$.] A consistency check in
-    Section~\ref{sec:simulator-checks} fails.
-  \item[$\BadAuth$.] A record is accepted before its provider's
-    signing-key exposure whose message was never signed by the honest
-    signing step.  Different signature bytes on an already signed
-    message do not trigger this condition.
-\end{description}
+at the first failed check from Section~\ref{sec:simulator-checks}.
+Write $\BadThreshold$, $\BadEarlyQuery$, and $\BadAuth$ for failures
+of $\PO{1}$, $\PO{2}$, and $\PO{3}$, respectively; $\BadPublicData$
+denotes a failure of any of $\PO{4}$--$\PO{9}$.
 The intermediate experiments inherit these guards.  Thus $H_0$ is a
 guarded version of the simulated execution; their output probabilities
 can differ only when a guard is reached.  A further correctness guard
@@ -65,33 +119,38 @@ is introduced explicitly in $H_3$.  $H_8$ is the unguarded real execution.
 Until the final step, execute the algorithms $\SimSetup$ and $\SimRO$
 with the current memoized source $\SimSample$.  This defines the oracle
 answers operationally even when the source returns modified samples.
-We do not assume universal-sampler consistency for such a source;
-Definition~\ref{def:adaptive-universal-sampler} supplies it once the
-source has become honest.
+We do not assume universal-sampler consistency for a modified source.
+The application of Definition~\ref{def:adaptive-universal-sampler}
+uses the honest-source prefix comparison specified for $\PO{4}$ in
+Table~\ref{tab:proof-obligations}.
 
 Experiments $H_0$ through $H_6$ run the ideal task internally.  A
 reduction can therefore read the secret inputs, private outputs, and
 states $\sigma_s$ needed to define a replacement.  These values are not
 made available to $\mathcal Z$ or to the implementable simulator.
 The circuit rule remains
-$F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$, using the committed public
-input components.  Announcements, commitments, and private deliveries
-retain their specified clock times, including queued outputs delivered
-to a pid corrupted before the delivery tick.
+$F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$ as in
+Section~\ref{sec:reactive-task}, using the committed public input components.  Announcements, commitments, and private deliveries
+follow Figure~\ref{fig:mpc-execution}, \emph{Clock tick},
+with the queued deliveries of Figure~\ref{fig:yaso-ledger},
+$\EndRound$, also reproduced for pids corrupted before delivery.
 
 \paragraph{Input authentication and fresh descriptions.}
-The authentication guard is bounded using one-time signature
-unforgeability.  Its reduction stops at the first new accepted message
+The authentication guard $\PO{3}$ concerns the records accepted by
+Figure~\ref{fig:signed-encrypted-inputs}, $\Inputs.\Select$, and is
+bounded using one-time signature unforgeability.  Its reduction stops at the first new accepted message
 under its unexposed challenge signer and need not answer a later
 corruption.  An honest record already posted cannot be replaced by a
-later record, even after the signing key is exposed.
+later record, even after the signing key is exposed: $\Inputs.\Select$
+keeps the first valid record, and Figure~\ref{fig:yaso-ledger},
+$\Activate$ and $\Post$, append postings to $L$.
 
 For nonce freshness, consider the execution stopped before the first
 honest nonce-committee key is disclosed.  Encryption privacy hides the
 honest share packets, and threshold privacy hides $Q_s$ given the
-corrupt shares.  The description's other fields are frozen before
-release, so an earlier request for that description must predict its
-nonce.  Count every query to the sample source, including those made
+corrupt shares.  The allocation fixes the description's other fields before release
+(Figure~\ref{fig:protocol-schedule}, $\PublicData$, items~2--3),
+so an earlier request for that description must predict its nonce.  Count every query to the sample source, including those made
 by $\SimSetup$ and $\SimRO$.  This argument uses receiver NCE to hide
 the packets only in the stopped execution; it does not have to explain
 them after disclosure.  The guard bounds, including threshold failure,
@@ -147,7 +206,7 @@ algorithms; challenger commands are used only in reductions.
  to the first test: their ideal inputs were defined by $\Extract$.
 
 \item[$H_4$: $\Garbling_1$.]
- $\Prepare(s)$ constructs
+ $\Prepare(s)$ constructs the circuit of Figure~\ref{fig:round-circuit}:
  \[
  C_s=\RoundCircuit_s[\statesk_s,\boldsymbol{\inputsk}_s,
                     \boldsymbol\delta_s,\boldsymbol r_s,\rho_s]
@@ -186,8 +245,9 @@ algorithms; challenger commands are used only in reductions.
  to use ordinary encryption.
 
 \item[$H_7$: remove the ideal bookkeeping.]
- Run the genuine $\FLedger[\Pi]$ with the dummy adversary and
- $\mathcal Z$, but obtain public parameters and oracle answers from
+ Run $\FLedger[\Pi]$ as defined in Figure~\ref{fig:yaso-ledger},
+ with the party algorithms of Figure~\ref{fig:protocol-steps}, the dummy
+ adversary, and $\mathcal Z$, but obtain public parameters and oracle answers from
  $\SimSetup^{\IdealSample}$ and $\SimRO^{\IdealSample}$.
  Here $\IdealSample(d)$ draws and memoizes an honest $d(\omega)$.
  There is no internal ideal task, source-tape access by the surrounding
@@ -279,8 +339,9 @@ Assume receiver non-committing security with tape exposure
 
 \begin{lemma}[Removing the ideal bookkeeping]
 \label{lem:remove-ideal-bookkeeping}
-Assume correctness of the cryptographic primitives, robust reconstruction,
-adaptive universal-sampler consistency, and the assumptions of
+Assume correctness of the cryptographic primitives, including
+Equation~\eqref{eq:garbling-correctness},
+robust reconstruction, adaptive universal-sampler consistency, and the assumptions of
 Lemma~\ref{lem:simulation-guards}.  For every PPT $\mathcal Z$,
 \[
  |p_6^{\mathcal Z}(\lambda)-p_7^{\mathcal Z}(\lambda)|
@@ -306,7 +367,8 @@ Assume adaptive universal-sampler security.  For every PPT $\mathcal Z$,
 Assume the primitive properties used in
 Lemmas~\ref{lem:restore-input-encryption}--\ref{lem:restore-deliveries},
 adaptive universal-sampler security, one-time signature security, and
-correctness of the primitives.
+correctness of the primitives, including
+Equation~\eqref{eq:garbling-correctness}.
 Choose the committee parameters so that the
 probability of an over-threshold committee in any permitted efficient
 execution is negligible.  Then, for every PPT $\mathcal Z$,
@@ -316,8 +378,10 @@ execution is negligible.  Then, for every PPT $\mathcal Z$,
 \]
 \end{lemma}
 
-For the consistency guard, first bound failure in the honest-source
-experiment $H_6$.  To transfer the bound to $H_0$, let $\mathcal Z^1$
+Combine the first-failure bounds in Table~\ref{tab:proof-obligations}
+to bound the probability of any guard in $H_6$.  This includes
+$\BadCorrectness$, whose bound is first established at $H_3$.
+To transfer this aggregate bound to $H_0$, let $\mathcal Z^1$
 run $\mathcal Z$ with the same interaction but return $1$ at termination.
 Then
 \[
@@ -327,9 +391,11 @@ Then
 \]
 The preceding whole-experiment comparisons apply to $\mathcal Z^1$
 without assuming the early guards negligible.  This transfers the
-honest-$H_6$ bound backwards and avoids assuming consistency of a
-modified sample source.  Establishing the direct $H_6$ bound is part
-of the remaining proof of Lemma~\ref{lem:simulation-guards}.
+honest-$H_6$ aggregate bound backwards.  It does not separately identify
+the probability of each $\PO{i}$, since every guard returns the same
+bit $0$.  The bounds in Table~\ref{tab:proof-obligations}, including the prefix
+comparison for $\PO{4}$, are the remaining obligations of
+Lemma~\ref{lem:simulation-guards}.
 
 Once these lemmas are proved, the endpoint comparison is just
 \[
@@ -384,9 +450,10 @@ following challenger calls.
     \[
       c\gets\EncryptMessage(\xsec_{s,a}).
     \]
-    Sign and post the returned ciphertext
-    together with the unchanged public component $\xpub_{s,a}$, using
-    the genuine signing key and fresh signing coins.  If the provider
+    Substitute this ciphertext in Figure~\ref{fig:signed-encrypted-inputs},
+    $\Inputs.\Prepare$, keeping its record construction and signing
+    of the unchanged public component $\xpub_{s,a}$.  Post the result
+    as in Figure~\ref{fig:yaso-ledger}, $\Activate$.  If the provider
     is subsequently corrupted, call $\CorruptSender()$ and use its
     returned encryption tape in the disclosed history.  Repeated
     disclosures reuse that tape.  The input-decryption key and its

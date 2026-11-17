@@ -15,83 +15,108 @@ The variants used in the proof replace those same named hooks.
 \subsection{Execution logistics}
 \label{sec:simulator-logistics}
 
-Use the ledger's state, guards, snapshots, posting rules, and flags from
-Figure~\ref{fig:yaso-ledger}.  All ideal-task commands below are sent to
-$\FMPC$, with the session tag $\sid$.  Ordinary ledger commands and replies
-use the adversarial interface in Figure~\ref{fig:model-simulation}.
-Initialize setup through $\Sampling_0.\Setup()$ and answer oracle
-queries through $\Sampling_0.\QueryRO(q)$.  Retain input notices indexed by $(\pid,j)$, selected input indexes,
-and the ideal results of completed rounds.  For each input role retain
-flags recording whether it posted honestly and whether its input has
-committed.  Initially these flags are false.  Unknown input contents
-and private outputs are retained symbolically until corruption reveals
-them; they are not sent to the environment.
+Use the ledger's state and handlers from Figure~\ref{fig:yaso-ledger}.
+All ideal-task commands below are sent to $\FMPC$, with session tag
+$\sid$, through the interface of Figures~\ref{fig:mpc-registration}
+and~\ref{fig:mpc-execution}.  Ledger commands and replies use the
+adversarial interface in Figure~\ref{fig:model-simulation}.
+In Figure~\ref{fig:construction-crs}, $\CRS$, replace $\Setup^H$
+by $\Sampling_0.\Setup()$; use the resulting $\crs=(U)$ in
+Figure~\ref{fig:yaso-ledger}, \emph{Initialization}.  Answer oracle queries through
+$\Sampling_0.\QueryRO(q)$.  Retain input notices indexed by $(\pid,j)$,
+selected input indexes, and the ideal results of completed rounds.
+For each input role retain flags recording whether it posted honestly
+and whether its input has committed, initially false.  Unknown input
+contents and private outputs are retained symbolically until corruption
+reveals them.
 
 \begin{description}
 \item[Registration.]
- For a computation registration, sample its corruption flag with
- probability $p$ and call $\Deliveries_0.\Register(\Computation,\beta,\bot)$
- with the sampled flag $\beta$.
- For an application registration, send $\Register()$ to $\FMPC$ and pass
- its returned helper $h$ to
- $\Deliveries_0.\Register(\Application,0,h)$.  Return a rejected
- ideal registration without inserting a ledger entry.  Use the returned pid
- in the simulated ledger and perform its registration bookkeeping,
- retaining the sampled corruption flag and setting $\HasSpoken=\bot$.
- Return the pid to $\mathcal Z$; $\FMPC$ supplies the application-pid
- output.  Initially corrupted computation pids receive the prescribed
- immediate disclosure.
+ Modify Figure~\ref{fig:yaso-ledger}, $\Register$, by replacing
+ $\Gen$ with the delivery hook.  For a computation registration, sample
+ its corruption flag $\beta$ with probability $p$ and call
+ $\Deliveries_0.\Register(\Computation,\beta,\bot)$.
+ For an application registration, set $\beta=0$, send $\Register()$ to $\FMPC$
+ (Figure~\ref{fig:mpc-registration}, $\Register$) and pass its returned
+ helper $h$ to $\Deliveries_0.\Register(\Application,0,h)$.
+ Return a rejected ideal registration without inserting a ledger entry.
+ Use the returned pid in the ledger's registration bookkeeping, retaining
+ $\beta$ and setting $\HasSpoken=\bot$.  Return the pid to $\mathcal Z$;
+ the application-pid output is supplied by $\FMPC$'s $\Register$ handler.
+ For an initially corrupted computation pid, disclose the state specified
+ by the ledger's $\Register$ handler.
 
 \item[Input arrivals and selection.]
- On $(\Input,\pid,j,s,a,\xpub)$, store $(|L|,s,a,\xpub)$ at index
- $(\pid,j)$; on $(\Input,\pid,j,\bot)$ store $(|L|,\bot)$.
- On $(\SelectedInput,s,a,j)$, store the selected index.
- Inputs that $\FMPC$ routes from already corrupted pids are forwarded
- to $\mathcal Z$.  Honest input notices remain internal.
+ Process the notices from Figure~\ref{fig:mpc-execution}, the two
+ $\Input$ handlers, as follows.  On $(\Input,\pid,j,s,a,\xpub)$, store
+ $(|L|,s,a,\xpub)$ at index $(\pid,j)$; on $(\Input,\pid,j,\bot)$ store
+ $(|L|,\bot)$.  The ledger position is the arrival tag used in
+ Figure~\ref{fig:yaso-ledger}, $\Input$.
+ Store each selected index from $(\SelectedInput,s,a,j)$, sent by
+ Figure~\ref{fig:mpc-execution}, \emph{Clock tick}, item~4.
+ Forward to $\mathcal Z$ the inputs that those $\Input$ handlers route
+ from already corrupted pids.  Honest input notices remain internal.
 
 \item[Clock, allocation, and announcements.]
- Follow the ledger's tick handler, including its closing sweep after
- the first tick.  On each new allocation of round $s$, send
- $\Announce(s)$ and call $\Sampling_0.\Reserve(s)$.
- When $\CoinPhase(s+1)$ starts, send $\Proceed(s)$ once.
- Thus $\ReadyTick_s=\AllocRound_s+1$ and
+ Follow Figure~\ref{fig:yaso-ledger}, \emph{Clock tick} and $\EndRound$.
+ When $\PublicData$ makes a new allocation of round $s$
+ (Figure~\ref{fig:protocol-schedule}, item~2, calling
+ Figure~\ref{fig:role-allocation}, $\Allocate$), send $\Announce(s)$
+ and call $\Sampling_0.\Reserve(s)$.
+ When $\CoinPhase(s+1)$ starts under $\PublicData$, item~3, send
+ $\Proceed(s)$ once.  These ideal commands are defined in
+ Figure~\ref{fig:mpc-registration}; they set
+ $\ReadyTick_s=\AllocRound_s+1$ and
  $\InputStart_s=r^{\mathsf{coin}}_{s+1}+1$.
- Both functionalities follow the same clock; the simulator does not
- advance $\FMPC$ itself.
+ Both functionalities follow the same clock.
 
 \item[Honest activations.]
- Apply the ledger's eligibility guards and save the activation's
- snapshots.  Computation parties use the protocol's release tests and
- post their cached delivery key when the test holds.  The sampling and
- sharing hooks fix that key before the corresponding release.
- For an input provider in its input phase, remain silent if its selected
- index is $\bot$.  Otherwise call
- $\InputEncryption_0.\Post(s,a,\xpub_{s,a})$ and post the returned signed
- record.  Mark the input committed; send $\CommitInput(s,a)$ only if
- this activation is not in the closing sweep.  The sweep uses the ideal
- task's automatic commitment at the tick.
- For an input pid at $r=\AllocRound_s$, queue its circuit notification.
+ Apply the eligibility guards of Figure~\ref{fig:yaso-ledger},
+ $\Activate$, using the snapshots frozen by its \emph{Clock tick} handler.
+ Computation parties run the release tests of
+ Figure~\ref{fig:protocol-steps}, $\ComputationStep$, and return their
+ cached delivery key when the test holds.  The sampling and sharing
+ hooks fix that key before this release.
+ In the input branch of $\ApplicationStep$ in the same figure, use
+ the selected index received from $\FMPC$; remain silent if it is $\bot$.
+ Otherwise replace $\Inputs.\SubmitInput$'s \emph{What} in
+ Figure~\ref{fig:signed-encrypted-inputs} by
+ $\InputEncryption_0.\Post(s,a,\xpub_{s,a})$ and post its signed record.
+ Mark the input committed.  Send $\CommitInput(s,a)$ as defined in
+ Figure~\ref{fig:mpc-execution} unless this activation is in the closing
+ sweep; that sweep uses the automatic commitment in the same figure's
+ \emph{Clock tick}, item~1.
+ In the announcement branch of $\ApplicationStep$
+ (Figure~\ref{fig:protocol-steps}), queue its circuit notification.
  For an assigned output recipient in $\OutputPhase(s)$ with the required
- public data available, queue its private output by role.  Both are due
- at the tick ending this slot; their unknown private values remain symbolic.  Apply the ledger's $\HasRun$, posting, $\HasSpoken$, and
- history updates.  Other cases follow $\ApplicationStep$ unchanged.
+ public data available, replace private decryption in that figure's
+ output branch by queuing the ideal output symbolically by role.  Apply the flags, postings, history updates, and output queue
+ of Figure~\ref{fig:yaso-ledger}, $\Activate$; delivery is deferred to
+ its $\EndRound$.  Other cases of $\ApplicationStep$ are unchanged.
 
 \item[Adversarial postings.]
- Apply the ledger's $\Post$ handler.  After an accepted post in
- $\InputPhase(s)$, run $\Inputs.\Select$ on the current slot's messages
- for every uncommitted provider $a$, using its prescribed context and
- verification key.  Skip default results.  For a selected record,
- apply the authentication check below.  If its provider is corrupt,
- call $\InputEncryption_0.\Extract(s,a,c)$ and send
- $\CorruptInput(s,a,(\xsec,\xpub))$ with the returned secret part and
- that record's public part.  Mark this provider committed.
- Selection is by the signed record's provider, not by the posting pid.
+ Apply Figure~\ref{fig:yaso-ledger}, $\Post$.
+ After an accepted post in $\InputPhase(s)$, select records as in
+ Figure~\ref{fig:protocol-schedule}, $\PublicData$, item~1,
+ $\InputPhase(s)$, but use $\PostedMessages(L,r)$ from the current
+ ledger instead of the closed snapshot.  For each uncommitted provider
+ $a$, use the context $\ctx_{s,a}$ and verification key $\sigvk_{s,a}$
+ specified there in the call to $\Inputs.\Select$
+ (Figure~\ref{fig:signed-encrypted-inputs}, \emph{Primitives}).
+ Skip default results and apply the authentication check
+ $\PO{3}$ in Section~\ref{sec:simulator-checks} to selected records.
+ If the provider is corrupt, call
+ $\InputEncryption_0.\Extract(s,a,c)$ and send
+ $\CorruptInput(s,a,(\xsec,\xpub))$
+ (Figure~\ref{fig:mpc-execution}) with the returned secret part and
+ the selected public part.  Mark that provider committed.
 
 \item[Input closure.]
- Retain the ideal closing result and all corrupt-recipient output bits
- internally.  Once both this result and the closed ledger input records
- are available, obtain $\InputBits_s$ by the protocol's concatenation
- rule and perform, once and in this order,
+ Retain the result and corrupt-recipient output bits supplied by
+ Figure~\ref{fig:mpc-execution}, \emph{Clock tick}, item~1.
+ Once this result and the closed ledger input records are available,
+ form $\InputBits_s$ as in Figure~\ref{fig:protocol-schedule},
+ $\PublicData$, item~1, $\InputPhase(s)$, and perform once:
  \[
  \begin{aligned}
  z_s&\gets\OutputPads_0.\Close(s,\boldsymbol y_s^{\mathsf{cor}}),\\
@@ -100,31 +125,35 @@ them; they are not sent to the environment.
  &\Sharing_0.\Open(s,\InputBits_s,X_s).
  \end{aligned}
  \]
- Test readiness after either prerequisite arrives.  Complete these
- calls before handling an honest label disclosure.  The protocol's
- later public recovery and evaluation remain unchanged.
+ Test readiness after either prerequisite arrives and complete these
+ calls before handling an honest label disclosure.  Recovery and
+ evaluation remain as in $\PublicData$, item~1, $\LabelPhase(s)$.
 
 \item[Corruption and private delivery.]
- Apply the ledger's corruption condition and mark the pid corrupted.
- For an application pid, obtain its ideal application record, merge
- its input contents with the stored arrival positions, and retain any
- newly learned output bits in $\boldsymbol y_s^{\mathsf{cor}}$.
- For an input provider with a prepared sample, call
- $\InputEncryption_0.\Corrupt(s,a,m)$, where $m$ is its committed
- secret input if it posted honestly, and $\bot$ otherwise.
- For an output recipient, call $\OutputPads_0.\Corrupt(s,j,y)$, where $y$ is its ideal
- output if determined, and $\bot$ otherwise.  An unassigned application
- pid or an input provider's unused delivery key uses
- $\Deliveries_0.\Bind(\pid,0^{\ell_{\mathsf{del}}})$.
- Reconstruct and disclose exactly the ledger state specified below.
- At a delivery tick, $\FMPC$ outputs to still-honest pids.  If the
- simulated ledger queued an output before its pid was corrupted,
- deliver that queued value through the corrupted-pid interface instead.
+ Apply Figure~\ref{fig:yaso-ledger}, \emph{On corruption}, and mark
+ the pid corrupted.  For an application pid, obtain its record through
+ Figure~\ref{fig:mpc-execution}, \emph{On corruption}.  Merge its input
+ contents with the stored arrival positions and store newly learned
+ output bits in $\boldsymbol y_s^{\mathsf{cor}}$.
+ For a prepared input provider call
+ $\InputEncryption_0.\Corrupt(s,a,m)$, where $m$ is its committed secret
+ input if it posted honestly, and $\bot$ otherwise.
+ For an output recipient call $\OutputPads_0.\Corrupt(s,j,y)$, where
+ $y$ is its determined ideal output, or $\bot$ if not determined.
+ For an unassigned application pid or an input provider's unused
+ delivery key, call $\Deliveries_0.\Bind(\pid,0^{\ell_{\mathsf{del}}})$.
+ Reconstruct the state and history as in Section~\ref{sec:simulator-checks}
+ and disclose them as specified by the ledger's corruption handler.
+ At a delivery tick, $\FMPC$ outputs to still-honest pids as in
+ Figure~\ref{fig:mpc-execution}, \emph{Clock tick}, items~2--3.
+ If an output was queued before its pid was corrupted, reproduce the
+ output to that pid prescribed by Figure~\ref{fig:yaso-ledger},
+ $\EndRound$, final instruction.
 \end{description}
 
-The logistics never forward registration helpers, selected-input indexes,
-or early ideal results as ledger replies.  Announcements and outputs
-reach the environment at the protocol's prescribed times.
+Registration helpers, selected-input indexes, and early ideal results
+are internal simulator state.  The timing of outputs to $\mathcal Z$
+is that of the referenced ledger and ideal-task handlers.
 
 \subsection{Replacement hooks}
 \label{sec:simulator-hooks}
@@ -314,38 +343,75 @@ once; repeated disclosures or sample requests reuse it.
 \subsection{Checks and retained histories}
 \label{sec:simulator-checks}
 
-The simulator halts at the first over-threshold committee, previously
-answered designated description, or newly accepted message under an
-unexposed signing key that it did not sign.  It also halts on a failure
-of any of the following checks; the hybrid experiments return bit $0$.
-Their negligible failure probabilities are proof obligations, not
-assumptions made while running the simulator.
-\begin{enumerate}
- \item At each sampling call made by the simulated ledger or honest
-   step, compare the actual public result with $\SimSample(d)$.
- \item At a coin-phase completion, check its recovered nonce against
-   the reserved $Q_s$.  At input closure, check the selected records
-   against all honest postings, and require an honest posting for every
-   still-honest provider with a selected input.  Compare the resulting
-   public-input vector with the ideal closing result.
- \item At label-phase completion, compare the reconstructed encoding
-   with $X_s$ and its evaluation with the garbling hook's retained result.
- \item Compare ideal announcements with the simulated allocations.
-   Before corruption disclosure, check the reconstructed histories
-   against their fixed public keys, postings, and queued outputs.
-\end{enumerate}
-Ill-formed or unavailable required data fails a check.  An expected ideal
-notification is awaited; readiness is tested after either its arrival or
-the corresponding ledger event.  No check requires an honest provider's
-unrevealed sample-owned input-decryption key.
+The following checks define proof obligations $\PO{1}$--$\PO{9}$.
+The simulator halts at their first failure; the guarded hybrid experiments
+return bit $0$.  Section~\ref{sec:hybrids-details} locates the arguments
+needed to bound these failures.
+\begin{description}
+ \item[$\PO{1}$: committee thresholds.]\phantomsection\label{po:threshold}
+ At reservation, check that each nonce and label committee has at most
+ $t$ initially corrupted members.  These are the blocks assigned by
+ Figure~\ref{fig:role-allocation}, $\Allocate$, item~3.
+ \item[$\PO{2}$: freshness.]\phantomsection\label{po:freshness}
+ In $\Sampling_0.\Reserve(s)$, check that $T[\SampleCircuit_s]$ is unset.
+ The table includes source calls made by $\SimSetup$ and $\SimRO$.
+ \item[$\PO{3}$: authentication.]\phantomsection\label{po:authentication}
+ When $\Inputs.\Select$ accepts a record under an unexposed signing
+ key, check that its message was signed by the simulated honest posting
+ step.  The selection rule is in Figure~\ref{fig:signed-encrypted-inputs},
+ \emph{Primitives}, $\Inputs.\Select$.  A different signature on the
+ same signed message does not fail this check.
+ \item[$\PO{4}$: public samples.]\phantomsection\label{po:samples}
+ At every sampling call made by the simulated ledger or an honest step,
+ compare its public result with $\SimSample(d)$.  These calls occur in
+ Figure~\ref{fig:shared-coins}, $\Coin.\Prepare$, and
+ Figure~\ref{fig:protocol-schedule}, $\PublicData$, item~1,
+ $\CoinPhase(s)$.
+ \item[$\PO{5}$: nonce recovery.]\phantomsection\label{po:nonce}
+ At completion of $\CoinPhase(s)$ in $\PublicData$, item~1, check
+ its recovered nonce against the reserved $Q_s$.
+ \item[$\PO{6}$: input selection.]\phantomsection\label{po:inputs}
+ At input closure, check that every honest posting is the selected
+ record for its provider, and that every still-honest provider with a
+ selected input posted.  Compare the public-input vector from
+ Figure~\ref{fig:protocol-schedule}, $\PublicData$, item~1,
+ $\InputPhase(s)$, with that supplied by Figure~\ref{fig:mpc-execution},
+ \emph{Clock tick}, item~1.
+ \item[$\PO{7}$: label recovery and evaluation.]\phantomsection\label{po:evaluation}
+ At completion of $\LabelPhase(s)$ in Figure~\ref{fig:protocol-schedule},
+ $\PublicData$, item~1, compare the reconstructed encoding with the
+ retained $X_s$, and its evaluation with the garbling hook's retained
+ result.
+ \item[$\PO{8}$: announcements.]\phantomsection\label{po:announcements}
+ Compare the circuit and pid vectors from
+ Figure~\ref{fig:mpc-registration}, $\Announce$, with the simulated
+ allocation, and check $\ReadyTick_s=\AllocRound_s+1$.
+ This is the delivery tick for the notification branch of
+ Figure~\ref{fig:protocol-steps}, $\ApplicationStep$, under
+ Figure~\ref{fig:yaso-ledger}, $\EndRound$.
+ \item[$\PO{9}$: disclosed histories.]\phantomsection\label{po:histories}
+ Before corruption disclosure, check the reconstructed histories against
+ their fixed public keys, postings, and queued outputs, as specified by
+ Figure~\ref{fig:yaso-ledger}, $\Register$, $\Activate$, and
+ \emph{On corruption}.
+\end{description}
+Ill-formed or unavailable required data fails its corresponding check.
+An expected ideal notification is awaited; readiness is tested after
+either its arrival or the corresponding ledger event.  No check requires
+an honest provider's unrevealed sample-owned input-decryption key.
 
-For each actual activation retain its ledger snapshot, input indexes,
-used tape positions, and public-oracle query/answer transcript.
-On corruption, fill the missing input contents from the ideal record and
-insert the hook's explained coins in the corresponding positions of the
-party's step tape.  Preserve all fixed positions and sample unused
-positions independently.  Rerun $\Gen$ and the saved party steps with
-these tapes and recorded oracle answers to reconstruct their local
-configurations.  Disclose only outputs computed in those activations.
-A computation member executes its release test and returns its key;
-share completion and binding are simulator operations, not party history.
+To reconstruct the histories required by Figure~\ref{fig:yaso-ledger},
+$\Register$ and $\Activate$, retain each activation's ledger snapshot,
+input indexes, used tape positions, and public-oracle query/answer
+transcript.
+On corruption, fill the missing input contents from the ideal record
+(Figure~\ref{fig:mpc-execution}, \emph{On corruption}) and insert the
+hook's explained coins into the corresponding subtapes from
+Figure~\ref{fig:protocol-steps}.  Preserve all fixed positions and sample
+unused positions independently.  Rerun $\Gen$ and the saved party steps
+with these tapes and recorded oracle answers to obtain their local
+configurations.  Disclose the
+state required by the ledger's corruption handler, including only the
+outputs computed in those activations.  As in Figure~\ref{fig:protocol-steps},
+$\ComputationStep$, a computation member runs its release test and
+returns its key; share completion and binding are simulator operations.
