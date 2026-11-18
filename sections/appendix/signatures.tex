@@ -1,0 +1,29 @@
+\subsection{One-Time Unforgeability}
+\label{app:signatures}
+
+The experiment uses the signature algorithms of Section~\ref{sec:signatures}.
+\begin{definition}[One-time unforgeability]
+\label{def:one-time-signatures}
+Give an efficient adversary these commands:
+\begin{description}
+  \item[$\GetVerificationKey()$.]
+    Generate $(\sigvk,\sigsk)$ and return $\sigvk$.
+  \item[$\SignMessage(m)$.]
+    Record $m$ and return $\Sign(\sigsk,m)$.
+  \item[$\Forge(m^*,\sig^*)$.]
+    Terminate.  The adversary wins if
+    $\Verify(\sigvk,m^*,\sig^*)=\top$ and $m^*$ was not the
+    message submitted to $\SignMessage$.
+\end{description}
+The first two commands are accepted at most once each, in that order.
+The adversary may attempt its forgery after receiving the verification
+key, whether or not it requested a signature.  Malformed commands are
+rejected without changing state.  The scheme is one-time unforgeable
+if every efficient adversary's winning probability is negligible.
+\end{definition}
+
+In Figure~\ref{fig:signed-encrypted-inputs}, the message
+$q=\InputRecord(\ctx,\xpub,c)$ contains the sampling description and
+hence the provider's verification key. Applying Lamport's scheme to a
+collision-resistant digest of $q$ fixes the verification-key and signature
+lengths independently of the message length.

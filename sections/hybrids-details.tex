@@ -17,7 +17,7 @@ only the listed replacements; all other rules are inherited.
 \renewcommand{\arraystretch}{1.15}
 \begin{tabular}{@{}l>{\raggedright\arraybackslash}p{.47\linewidth}>{\raggedright\arraybackslash}p{.34\linewidth}@{}}
 Experiment & Replacement & Property used \\\hline
-$H_0$ & All replacements have subscript $0$ & Simulated execution \\
+$H_0$ & All replacements have subscript $0$ & Guarded simulated execution \\
 $H_1$ & $\InputEncryption_0\to\InputEncryption_1$ & Full NCE with tape exposure \\
 $H_2$ & $\StateCiphertext_0\to\StateCiphertext_1$ & State-encryption IND-CPA \\
 $H_3$ & $\OutputPads_0\to\OutputPads_1$;\newline $\StateCiphertext_1\to\StateCiphertext_2$ & Deferred decisions; correctness \\
@@ -112,9 +112,12 @@ states $\sigma_s$ needed to define a replacement.  These values are not
 made available to $\mathcal Z$ or to the implementable simulator.
 The circuit rule remains
 $F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$ as in
-Section~\ref{sec:reactive-task}, using the committed public input components.  Announcements, commitments, and private deliveries
-follow Figure~\ref{fig:mpc-execution}, \emph{Clock tick},
-with the simulator handling $\Deliver$ as in Section~\ref{sec:simulator-logistics}.
+Section~\ref{sec:reactive-task}, using the committed public input
+components.  Figure~\ref{fig:mpc-registration}, $\Announce$, fixes the
+circuit and assignments.  Figure~\ref{fig:mpc-execution} specifies input
+commitments under $\CommitInput$ and $\CorruptInput$, and private deliveries
+under \emph{Clock tick}.  The simulator handles $\Deliver$ as in
+Section~\ref{sec:simulator-logistics}.
 
 \paragraph{Executable replacements.}
 $H_0$ uses the seven subscript-$0$ hooks of
@@ -336,16 +339,33 @@ execution is negligible.  Then, for every PPT $\mathcal Z$,
 \]
 \end{lemma}
 
-The lemmas give the endpoint comparison
+\begin{proof}[Theorem~\ref{thm:yaso-mpc}]
+Since $n=3t+1$, Shamir reconstruction tolerates $t$ faulty members.
+For each fixed block of $n$ successive
+computation registrations, the number of initial corruptions is
+binomial with parameters $(n,p)$. Since $p<1/3$ is fixed, the probability
+of more than $t$ corruptions is $e^{-\Omega(\lambda)}$. A union bound
+over the polynomially many candidate blocks in a PPT execution gives
+the threshold bound of Lemma~\ref{lem:simulation-guards} for the
+allocation in Figure~\ref{fig:role-allocation}.
+
+Use the simulator of Section~\ref{sec:simulator-details}. For every PPT
+environment $\mathcal Z$, Lemma~\ref{lem:simulation-guards} bounds the
+first difference below. Lemmas~\ref{lem:restore-input-encryption}--\ref{lem:restore-public-sampling}
+bound the remaining differences and identify $H_8$ with the real execution.
+Thus, in the dummy-adversary presentation of Figure~\ref{fig:model-simulation},
 \[
 \begin{split}
  &\left|\Pr[\SimExec^{\mathcal Z}(1^\lambda)=1]
        -\Pr[\RealExec^{\mathcal Z}(1^\lambda)=1]\right|\\
  &\quad\leq
  \left|\Pr[\SimExec^{\mathcal Z}(1^\lambda)=1]-p_0^{\mathcal Z}(\lambda)\right|
- +\sum_{i=0}^{7}|p_i^{\mathcal Z}(\lambda)-p_{i+1}^{\mathcal Z}(\lambda)|.
+ +\sum_{i=0}^{7}|p_i^{\mathcal Z}(\lambda)-p_{i+1}^{\mathcal Z}(\lambda)|
+ \leq \negl(\lambda).
 \end{split}
 \]
+\end{proof}
+
 \paragraph{Switching one instance at a time.}
 For a step $H_i\to H_{i+1}$ that switches several instances of a
 primitive, fix $\mathcal Z$ and number the instances as they arise.
@@ -492,7 +512,7 @@ target failure, so an arbitrary challenge message suffices there.
 Up to the indicated event the topology-only garblings use neither
 target secret key.  The input decryption tape and the state encryption
 coins remain unused and independent.
-Sections~\ref{sec:nce} and~\ref{sec:ind-cpa} allow $m$ to depend on the
+Appendices~\ref{app:nce} and~\ref{app:ind-cpa} allow $m$ to depend on the
 public key.  Any later failure of the target test requires this
 encryption to decrypt incorrectly.  Choose the target uniformly as
 above and sum the uniform correctness bounds over the possible lengths.

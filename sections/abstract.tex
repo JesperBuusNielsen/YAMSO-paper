@@ -6,17 +6,18 @@ speaker's entire state.  The apparent impossibility has a loophole:
 some parties may never speak, and their secrets can remain hidden.
 We call the resulting model \emph{You Atmost Speak Once} (YASO).
 We study it as a deliberately restricted theoretical model for secure
-multiparty computation, with a synchronous public ledger, random initial
-corruptions of computation parties (helpers without application inputs
-or outputs of their own),
-and chosen adaptive corruptions of application parties (which supply
-inputs or receive outputs), under role-specific timing rules.
-We give a feasibility construction for ongoing computation with no
-advance bound on the number of I/O rounds.  Independent adaptively
+multiparty computation with a synchronous public ledger.  Computation
+parties help run the protocol and have no application inputs or outputs.
+Each is independently corrupt at registration with probability $p$.
+An initially honest computation party can be corrupted after it speaks.
+Application parties supply inputs or receive outputs and can be corrupted
+at any time.
+For every fixed $p<1/3$, we give a construction for ongoing computation
+with no advance bound on the number of I/O rounds.  Independent adaptively
 secure garblings exchange state through public-key ciphertexts, and
 universal sampling removes the need for a secret-holding garbler.
 Input providers post a public input and an encrypted secret input under
-one signature; committees release labels for the public ciphertext bits and protect
+one signature.  Committees release labels for the public ciphertext bits and protect
 unused labels by remaining silent.  Non-committing encryption supports
 later sender and receiver state exposure.  The aim is to understand what remains
 possible without erasure and to identify techniques for more practical

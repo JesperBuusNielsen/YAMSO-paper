@@ -14,8 +14,8 @@ states needed for its challenges.
 Start with the guarded simulator.  Full NCE restores genuine input
 keys and encryptions one provider at a time, including the sender tape
 or receiver key required by the order of corruption and posting.
-Next embed an IND-CPA challenge key as $\statepk_{s+1}$ and request
-$\Challenge(0^{\nu_s},\sigma_s)$.  The ciphertext enters the public
+Next embed an IND-CPA challenge key as $\statepk_{s+1}$ and obtain an
+encryption of either $0^{\nu_s}$ or $\sigma_s$.  The ciphertext enters the public
 transcript and the successor's input.  Its secret key is never
 disclosed, and the topology-only simulator for the successor needs
 only its prescribed evaluation result at encoding.  Once every transfer encrypts
@@ -43,10 +43,9 @@ Consequently
        \ypub_s\bigr).
 \]
 This is precisely the tuple previously supplied to $\SimEncode$.
-One $\EncodeInput(\InputBits_s)$ query thus switches the simulated
-encoding to the genuine one.  The game returns only this selected
-encoding.  It suffices because the reduction can still complete the
-selected sharings when the encoding arrives.
+The garbling game can therefore supply either the simulated encoding or
+the genuine encoding of $\InputBits_s$.  The reduction needs just this
+one encoding to complete the selected sharings at closure.
 
 \paragraph{Restore the deliveries and public sampling ($H_4$--$H_8$).}
 Once all garblings are genuine, the reduction can generate both labels

@@ -217,15 +217,11 @@ decoding that returns $\bot$ outside its image.
 \label{fig:shared-coins}
 \end{figure}
 
-For coin $Q_s$, the protocol calls $\Coin.\Prepare$ with the reserved
-committee's keys and supplies the resulting ciphertext vector to
-$\Coin.\Release$.  Before releasing $Q_s$, the protocol fixes all other
-fields of the distribution description for I/O round $s$.
-The phase schedule in Figure~\ref{fig:protocol-schedule} enforces this
-ordering; the release call then uses the constant-true predicate.
-After the release round, readers form $\widehat{\boldsymbol{\sk}}$
-from the ledger as described for $\ESCR$ and obtain $Q_s$ by calling
-$\Coin.\Recover$.
+Figure~\ref{fig:protocol-schedule} fixes all other fields of
+$\SampleCircuit_s$ before scheduling the nonce committee. At that point
+$\Coin.\Release$ uses the constant-true predicate. At the next snapshot,
+readers call $\Coin.\Recover$ on the prepared ciphertexts and the keys
+posted in the release round.
 
 \subsection{Garbled input release}
 \label{sec:garbled-input-release}
@@ -305,23 +301,17 @@ outside its image.
 \label{fig:garbled-input-release}
 \end{figure}
 
-The round's sampling circuit runs $\Labels.\Prepare$ on the encoding key
-produced by $\Garble$.  The resulting ciphertext array is public,
-together with the garbled circuit; the encoding key remains internal
-to the sampling circuit.  The protocol reserves a fresh committee for
-each pair $(w,b)$, with all these committees pairwise disjoint.
+The round's sampling circuit calls $\Labels.\Prepare$ with the private
+encoding key from $\Garble$ and publishes the ciphertext array with the
+garbling. Each pair $(w,b)$ has its own fresh committee.
 
-For this use, $\InputBits_s$ is the augmented circuit's public input:
-the incoming state ciphertext, the accepted or default application-input
-records, and the successor's state public key, in circuit-wire order.
-Figure~\ref{fig:protocol-schedule} reconstructs this string from the
-completed input-posting round and earlier public data.
-
-The protocol schedules both committees for every wire in one label
-phase.  An honest member speaks precisely when its bit agrees with
-$\InputBits_s$.  At the next snapshot, readers collect keys only from
-the selected committees' label-phase records and call
-$\Labels.\Recover(\InputBits_s,\boldsymbol c,\widehat{\boldsymbol{\sk}})$.
+At input closure, Figure~\ref{fig:protocol-schedule} assembles
+$\InputBits_s$ from the incoming state ciphertext, the accepted or default
+input records, and the successor's state public key, in wire order.
+Both committees for every wire are scheduled in the same label phase.
+An honest member speaks exactly when its committee's bit matches the wire
+bit. At the next snapshot, $\Labels.\Recover$ uses the keys posted by
+the selected committees in that phase.
 
 \subsection{Signed encrypted inputs}
 \label{sec:signed-encrypted-inputs}
@@ -413,35 +403,20 @@ Let $\DefaultInput=0\mathbin\|0^\kappa$.
 \label{fig:signed-encrypted-inputs}
 \end{figure}
 
-$\GarbledRound_s$ supplies $\inputpk_{s,a}$; its corresponding
-decryption key is embedded in the round circuit.  The assigned
-provider's signing key comes from its registered application key tuple.
-Each input provider uses a fresh signing key for this single submission.
+The sample supplies $\inputpk_{s,a}$ and embeds its decryption key in
+the round circuit. The provider's one-time signing key comes from its
+application registration. In the common input round $r_{\mathsf{in}}$,
+$\ApplicationStep$ selects the first eligible input in the provider's
+frozen list (Figure~\ref{fig:protocol-steps}). Encryption and signing
+use disjoint portions of the provider's retained step tape.
 
-The protocol fixes one common input-posting ledger round
-$r_{\mathsf{in}}$ for I/O round $s$ and schedules its providers in that
-round.  A provider supplies its pair $x=(\xsec,\xpub)$ through
-$\Input((s,a,x))$.  Its $\ApplicationStep$ selects the first entry
-$(j,(s,a,x))$ in its frozen input list $x_{\pk,r}$ with
-$x\in\mathcal X_{\ell_{s,a}}$, or $\bot$ if none exists.
-Here $j$ is the recorded ledger arrival position.
-It supplies this pair to $\Inputs.\SubmitInput$.
-The call to $\Inputs.\Prepare$ uses disjoint portions of the party's
-fixed private step tape for encryption and signing.  These coins
-remain in its retained history.
-
-At snapshot $L_{r_{\mathsf{in}}+1}$, readers form $\mathcal R$ from the
-payloads $M$ of records $(\Message,r_{\mathsf{in}},\pk',M)$, in ledger
-order, and compute
-\[
-  (z_{s,a},\xpub_{s,a})\gets\Inputs.\Select(\sigvk,\ctx,\mathcal R).
-\]
-Only $z_{s,a}$ supplies the provider's portion of $\InputBits_s$;
-$\xpub_s=(\xpub_{s,a})_a$ enters the public history used by $G$.
-If no record is accepted, the default is secret input $0^{\ell_{s,a}}$ and
-public input $\epsilon$.  If an accepted record's ciphertext fails to
-decrypt, only its secret input defaults; its signed public input remains.
-All input selections are fixed before the label-release round.
+At the next snapshot, $\Inputs.\Select$ takes the first valid signed record
+for the provider and context among that round's postings, in ledger order.
+Its $z_{s,a}$ enters $\InputBits_s$ for label release, and its
+$\xpub_{s,a}$ enters the history for $G$. With no accepted record, the
+secret and public inputs default to $(0^{\ell_{s,a}},\epsilon)$.
+If an accepted record's ciphertext fails to decrypt, only the secret
+component defaults. The signed public input still counts.
 
 \subsection{The plaintext round circuit}
 \label{sec:round-circuit}
@@ -487,7 +462,7 @@ parameters, and bracketed values occupy fixed constant-gate positions.
                          \boldsymbol\delta_s,\boldsymbol r_s,\rho_s]$.}]
     Encoded secret parameters: the state-decryption key $\statesk_s$;
     input-decryption keys $\boldsymbol{\inputsk}_s=(\inputsk_{s,a})_a$
-    and their random tapes $\boldsymbol\delta_s=(\delta_{s,a})_a$;
+    and decryption tapes $\boldsymbol\delta_s=(\delta_{s,a})_a$;
     output pads $\boldsymbol r_s\in\bits^{h_s}$; and state-encryption
     tape $\rho_s$.
 
@@ -659,14 +634,7 @@ committees in registration order.  An application role is an input
 provider or an output recipient of $F_s$; a computation role is membership
 in a coin or label committee.  Allocated pids are never reassigned.
 
-The circuit-selection rule is the fixed public $G$ of
-Section~\ref{sec:reactive-task}.  Once the preceding public inputs and outputs needed
-for $F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr)$ are available, the protocol can
-allocate its participants.  Figure~\ref{fig:role-allocation} performs one
-such allocation.  Figure~\ref{fig:protocol-schedule} specifies when to
-call it and how to recover the preceding public inputs and outputs.
-
-\begin{figure}[p]
+\begin{figure}[!ht]
 \centering
 \fbox{%
 \begin{minipage}{0.95\textwidth}
@@ -716,6 +684,13 @@ Parameter: committee size $n$.
 \label{fig:role-allocation}
 \end{figure}
 
+The circuit-selection rule is the fixed public $G$ of
+Section~\ref{sec:reactive-task}.  Once the preceding public inputs and outputs needed
+for $F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr)$ are available, the protocol can
+allocate its participants.  Figure~\ref{fig:role-allocation} performs one
+such allocation.  Figure~\ref{fig:protocol-schedule} specifies when to
+call it and how to recover the preceding public inputs and outputs.
+
 The resulting vectors are the arguments of the existing gadgets:
 $\Coin.\Prepare$ uses $\boldsymbol{\pk}^{\mathsf{coin}}_s$, and
 $\SampleCircuit_s$ encodes both application-pid vectors and
@@ -732,28 +707,7 @@ share.  All later committees therefore use previously unallocated pids.
 \subsection{Protocol assembly}
 \label{sec:protocol-assembly}
 
-We now connect the gadgets through ledger rounds.  Figure~\ref{fig:protocol-schedule}
-computes public values and assignments from the successive ledger
-snapshots.  At each snapshot it first completes the preceding phase's
-public computation and then attempts one allocation.  The accepted public
-inputs and computed public outputs determine the later circuits through $G$.
-$\Schedule$ returns the resulting assignments and
-permitted speakers.  Together with $\CRS$ and the party algorithms of
-Figure~\ref{fig:protocol-steps}, these specify $\Pi$.
-The schemes, their public length bounds (including $b_{\mathsf{pub}}$),
-$n,t$, and $G$ are fixed
-parameters of $\Pi$.
-
-There are four phases.  A coin phase releases the nonce and makes its
-garbled round available.  An input phase collects signed encrypted
-inputs.  A label phase releases the encoding of the incoming state
-ciphertext, input records, and successor key.  An output phase lets recipients
-recover their private outputs.  Each phase occupies one ledger round;
-its postings are used from the next snapshot onward.  Two garbled rounds
-are prepared before the first input phase, and thereafter one new round
-is prepared before each input phase.
-
-\begin{figure}[p]
+\begin{figure}[!t]
 \centering
 \fbox{%
 \begin{minipage}{0.95\textwidth}
@@ -852,27 +806,19 @@ The phase sequence starts with $\CoinPhase(1)$ and then repeats
 \label{fig:protocol-schedule}
 \end{figure}
 
-Each pass uses only the registrations and completed postings in the
-snapshot currently being processed.  Later snapshots therefore preserve
-earlier assignments and phase start ticks.  Correct honest decryption
-and robust reconstruction give the same recovered public values across
-independent calls, except with negligible probability under the stated
-committee bound.
+We now connect the gadgets through ledger rounds.  Figure~\ref{fig:protocol-schedule}
+computes public values and assignments from the successive ledger
+snapshots.  At each snapshot it first completes the preceding phase's
+public computation and then attempts one allocation.  The accepted public
+inputs and computed public outputs determine the later circuits through $G$.
+$\Schedule$ returns the resulting assignments and
+permitted speakers.  Together with $\CRS$ and the party algorithms of
+Figure~\ref{fig:protocol-steps}, these specify $\Pi$.
+The schemes, their public length bounds (including $b_{\mathsf{pub}}$),
+$n,t$, and $G$ are fixed
+parameters of $\Pi$.
 
-At $r=\AllocRound_s$, an input provider's application step returns its
-circuit notification; the ledger delivers it at tick $r+1$.
-At most one I/O round is allocated per tick, and $\InputPhase(s)$ follows
-$\CoinPhase(s+1)$, so $r_s^{\mathsf{in}}\geq\AllocRound_s+2$.
-The provider has time to respond before its input list freezes.
-
-The output phase starts after label release.  Recipients recover their
-private outputs during this phase and receive them at its ending tick.
-The ideal task determines these outputs at the earlier input-closing
-tick, making them available on corruption before private delivery.
-This gives the timing in Figures~\ref{fig:mpc-registration}
-and~\ref{fig:mpc-execution}.
-
-\begin{figure}[p]
+\begin{figure}[!t]
 \centering
 \fbox{%
 \begin{minipage}{0.95\textwidth}
@@ -954,3 +900,32 @@ step before using it.
 inputs and outputs.}
 \label{fig:protocol-steps}
 \end{figure}
+
+There are four phases.  A coin phase releases the nonce and makes its
+garbled round available.  An input phase collects signed encrypted
+inputs.  A label phase releases the encoding of the incoming state
+ciphertext, input records, and successor key.  An output phase lets recipients
+recover their private outputs.  Each phase occupies one ledger round;
+its postings are used from the next snapshot onward.  Two garbled rounds
+are prepared before the first input phase, and thereafter one new round
+is prepared before each input phase.
+
+Each pass uses only the registrations and completed postings in the
+snapshot currently being processed.  Later snapshots therefore preserve
+earlier assignments and phase start ticks.  Correct honest decryption
+and robust reconstruction give the same recovered public values across
+independent calls, except with negligible probability under the stated
+committee bound.
+
+At $r=\AllocRound_s$, an input provider's application step returns its
+circuit notification; the ledger delivers it at tick $r+1$.
+At most one I/O round is allocated per tick, and $\InputPhase(s)$ follows
+$\CoinPhase(s+1)$, so $r_s^{\mathsf{in}}\geq\AllocRound_s+2$.
+The provider has time to respond before its input list freezes.
+
+The output phase starts after label release.  Recipients recover their
+private outputs during this phase and receive them at its ending tick.
+The ideal task determines these outputs at the earlier input-closing
+tick, making them available on corruption before private delivery.
+This gives the timing in Figures~\ref{fig:mpc-registration}
+and~\ref{fig:mpc-execution}.

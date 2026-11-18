@@ -1,0 +1,110 @@
+\subsection{Adaptive Universal Sampling}
+\label{app:universal-samplers}
+
+We give the real and ideal experiments for the sampler of
+Section~\ref{sec:universal-samplers}, following Hofheinz et al.\
+\cite[full version, Section~3.2, Definition~4]{HofheinzEtAl2016UniversalSamplers}.
+The public oracle $H$ has domain $\bits^*$ and a scheme-specified
+polynomial output length.  The private source $\IdealSample(d)$ is
+equivalently $d(F(d))$ for a private random function
+$F\colon\bits^\ell\to\bits^m$.
+
+\subsubsection{Adversary commands and admissibility}
+\label{sec:sampler-commands}
+
+The adversary $\mathcal A$ is an efficient interactive algorithm given
+$(1^\lambda,U)$, with the following commands:
+\begin{description}
+  \item[$\QueryRO(x)$.]
+    Request the public-oracle value at $x\in\bits^*$.
+  \item[$\Declare(d)$.]
+    Declare a description $d\in\bits^\ell$.  There is no reply.
+    The adversary then runs $p\gets\Sample^{\QueryRO}(U,d)$ and
+    records $\langle\DeclareOutput,d,p\rangle$ on an auxiliary tape.
+  \item[$\Finish(b)$.]
+    Terminate with $b\in\bits$.  Termination without an output bit is
+    interpreted as $\Finish(0)$.
+\end{description}
+Records use a fixed unambiguous encoding.  The adversary is
+\emph{admissible} if it follows this sampling procedure: every record
+$\langle\DeclareOutput,d,p\rangle$ contains the result of its declared
+evaluation, so $p=\Sample^{\QueryRO}(U,d)$.  Its other local computations
+and oracle queries are unrestricted.
+
+\subsubsection{Real and ideal experiments}
+\label{sec:sampler-experiments}
+
+\paragraph{Real experiment $\Real_{\mathcal A}(1^\lambda)$.}
+\begin{enumerate}
+  \item Initialize a random oracle $H$: its first query at any string
+    receives an independent uniform answer of the prescribed length;
+    repeated queries receive the same answer.
+  \item Compute $U\sample\Setup^{H}(1^\lambda)$ and give
+    $(1^\lambda,U)$ to $\mathcal A$.  Retain all oracle answers made
+    during setup.
+  \item Run $\mathcal A$, answering every $\QueryRO(x)$ with $H(x)$.
+    A $\Declare(d)$ command receives no reply.
+  \item On $\Finish(b)$, output $b$.
+\end{enumerate}
+
+\paragraph{Ideal experiment $\Ideal_{\mathcal A,\mathcal S}
+(1^\lambda)$.}
+The simulator consists of two efficient algorithms
+$\mathcal S=(\SimSetup,\SimRO)$.  Both have access to the
+same private $\IdealSample$ oracle.  The algorithm
+$\SimRO$ is stateful; its state persists across requests.
+\begin{enumerate}
+  \item Initialize the private random-tape table for
+    $\IdealSample$.
+  \item Compute
+    $(U,\SimState)\sample
+    \SimSetup^{\IdealSample}(1^\lambda)$.
+    Give $(1^\lambda,U)$ to $\mathcal A$ and retain $\SimState$ as
+    the simulator's private state.
+  \item Run $\mathcal A$.  On each $\QueryRO(x)$, compute
+    $(a,\SimState)\sample
+    \SimRO^{\IdealSample}(\SimState,x)$ and return $a$.
+  \item After each $\Declare(d)$, monitor the auxiliary tape for the
+    resulting $\langle\DeclareOutput,d,p\rangle$ record.  Obtain
+    $p^*\gets\IdealSample(d)$.  If $p\ne p^*$, terminate with
+    the distinguished result $\Inconsistent$.
+  \item On $\Finish(b)$, output $b$.
+\end{enumerate}
+The adversary has no direct access to $\IdealSample$.  The
+simulator receives only the $\QueryRO$ requests, not the sample
+declarations, recorded results, or consistency checker's oracle calls.
+There is no separately sampled public oracle in this experiment:
+$\SimRO$ supplies its answers.
+
+\begin{definition}[Adaptive universal sampling]
+\label{def:adaptive-universal-sampler}
+The pair $(\Setup,\Sample)$ is an adaptively secure
+universal sampler if there exist efficient simulator algorithms
+\[
+  \mathcal S=(\SimSetup,\SimRO)
+\]
+such that, for every
+efficient admissible adversary $\mathcal A$, there is a negligible
+function $\varepsilon_{\mathcal A}$ satisfying
+\begin{align*}
+  \left|\Pr[\Real_{\mathcal A}(1^\lambda)=1]
+    -\Pr[\Ideal_{\mathcal A,\mathcal S}(1^\lambda)=1]\right|
+    &\leq\varepsilon_{\mathcal A}(\lambda),\\
+  \Pr[\Ideal_{\mathcal A,\mathcal S}(1^\lambda)
+      =\Inconsistent]
+    &\leq\varepsilon_{\mathcal A}(\lambda).
+\end{align*}
+\end{definition}
+
+The first condition hides the simulation.  The second ensures that an
+honest public evaluation actually produces the corresponding ideal sample;
+it is the source definition's \emph{honest-sample violation} condition.
+The result $\Inconsistent$ is reserved for this failure, not for
+an adversary choosing to stop its own execution.
+
+\begin{theorem}[Hofheinz et al.]
+\label{thm:adaptive-universal-sampler}
+If indistinguishability obfuscation and one-way functions exist, then
+adaptively secure universal samplers exist in the random-oracle model.
+\end{theorem}
+This is \cite[full version, Theorem~3]{HofheinzEtAl2016UniversalSamplers}.

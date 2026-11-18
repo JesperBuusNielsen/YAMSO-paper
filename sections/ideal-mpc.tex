@@ -9,87 +9,7 @@ private outputs to its recipients, and produces one common public output.
 Its application I/O and its separate interface to the simulator appear
 on the right of Figure~\ref{fig:model-simulation}.
 
-\subsection{Reactive tasks}
-\label{sec:reactive-task}
-
-Fix a deterministic polynomial-time rule $G$ and a public polynomial
-bound $b_{\mathsf{pub}}(\lambda)$ on each public input string.
-Provider $a$ in I/O round $s$ supplies a pair
-\[
-  x_{s,a}=(\xsec_{s,a},\xpub_{s,a})\in\mathcal X_{s,a},
-  \qquad
-  \mathcal X_{s,a}=\bits^{\ell_{s,a}}
-      \times\bits^{\le b_{\mathsf{pub}}(\lambda)}.
-\]
-Write $\xsec_s=(\xsec_{s,a})_a$ and $\xpub_s=(\xpub_{s,a})_a$.
-The public history selects the application circuit, which receives only
-the secret input vector:
-\[
-  F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr),
-  \qquad
-  (\sigma_s,\ysec_s,\ypub_s)=F_s(\sigma_{s-1},\xsec_s).
-\]
-The history supplied to $G$ is empty for $s=1,2$.
-Initially $\sigma_0=\epsilon$.  The circuit has $g_s$ input providers,
-with secret-input lengths $\ell_{s,a}$, and $h_s$ private recipient
-output bits $\ysec_s$.  The value $\ypub_s$ is a single common public
-output string.  The description of $F_s$ specifies these lengths, its
-public-output length, and its incoming and outgoing state lengths.
-We require $G$ to produce valid circuits with compatible state lengths
-along every execution.  Fix public polynomial bounds on circuit size
-and on all secret-input, output, and state lengths.
-Public input strings may describe later circuits directly; they need
-not be passed through $F_s$.
-
-The dependence on public inputs and outputs through round $s-2$ makes
-$F_{s+1}$ available before round $s$ receives its inputs.  An application
-whose next circuit depends on its most recent public inputs or output
-can insert identity circuits in the even rounds:
-\[
-  F_{2j}(\sigma,\epsilon)=(\sigma,\epsilon,\epsilon).
-\]
-The odd rounds perform the application computations.  An identity round
-has no application inputs or private outputs; its implementation transfers
-the encrypted state to the following garbled round.
-
-\subsection{Registration and execution}
-\label{sec:mpc-execution}
-
-Figures~\ref{fig:mpc-registration} and~\ref{fig:mpc-execution} together
-define $\FMPC[G]$.  All messages carry the session identifier $\sid$.
-Registration produces the same public identifier format as
-Figure~\ref{fig:protocol-steps}: $\pid=(\ncek,\sigvk)$.
-The ideal task uses these strings as identifiers.  It samples the NCE
-registration string using $\SimNCE$ and gives the associated explanation
-material to the adversary, together with the independently generated
-signing key and its tape.  These are the extra registration values on
-the upward arrow from $\FMPC$ to $\mathcal S$ in
-Figure~\ref{fig:model-simulation}; they contain no application inputs.
-In the realization proof, they let the simulator explain the keys and
-tapes exposed by the implementation without choosing the application's
-pids itself.
-
-The adversary chooses when to announce each round and when to proceed.
-An announcement assigns the next unused application registrations to
-input providers and output recipients, in that order.  Input providers
-receive their circuit and assignment at the next tick.  A subsequent
-$\Proceed$ command starts a one-slot input window at the following tick.
-The functionality freezes the inputs available at that tick.  During
-the window, $\CommitInput$ fixes an honest provider's selected input;
-$\CorruptInput$ supplies a corrupted provider's contribution.  At the
-ending tick, the remaining honest contributions are fixed.  A missing
-contribution has secret part $0^{\ell_{s,a}}$ and public part $\epsilon$.
-Only the secret components enter the circuit; the committed public
-components enter the history used by $G$.
-
-The common public output $\ypub_s$ and corrupt recipients' private
-outputs are then given to the adversary.  Honest recipients receive their
-private outputs two ticks later.  This matches the label and output phases of
-Figure~\ref{fig:protocol-schedule}; an intervening corruption exposes an
-already-computed output before its delivery.  Once the input window is
-started, these events are driven by the clock.
-
-\begin{figure}[p]
+\begin{figure}[!ht]
 \centering
 \fbox{%
 \begin{minipage}{0.95\textwidth}
@@ -161,7 +81,39 @@ Figure~\ref{fig:mpc-execution}.
 \label{fig:mpc-registration}
 \end{figure}
 
-\begin{figure}[p]
+\subsection{Reactive tasks}
+\label{sec:reactive-task}
+
+Fix a deterministic polynomial-time rule $G$ and a public polynomial
+bound $b_{\mathsf{pub}}(\lambda)$ on each public input string.
+Provider $a$ in I/O round $s$ supplies a pair
+\[
+  x_{s,a}=(\xsec_{s,a},\xpub_{s,a})\in\mathcal X_{s,a},
+  \qquad
+  \mathcal X_{s,a}=\bits^{\ell_{s,a}}
+      \times\bits^{\le b_{\mathsf{pub}}(\lambda)}.
+\]
+Write $\xsec_s=(\xsec_{s,a})_a$ and $\xpub_s=(\xpub_{s,a})_a$.
+The public history selects the application circuit, which receives only
+the secret input vector:
+\[
+  F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr),
+  \qquad
+  (\sigma_s,\ysec_s,\ypub_s)=F_s(\sigma_{s-1},\xsec_s).
+\]
+The history supplied to $G$ is empty for $s=1,2$.
+Initially $\sigma_0=\epsilon$.  The circuit has $g_s$ input providers,
+with secret-input lengths $\ell_{s,a}$, and $h_s$ private recipient
+output bits $\ysec_s$.  The value $\ypub_s$ is a single common public
+output string.  The description of $F_s$ specifies these lengths, its
+public-output length, and its incoming and outgoing state lengths.
+We require $G$ to produce valid circuits with compatible state lengths
+along every execution.  Fix public polynomial bounds on circuit size
+and on all secret-input, output, and state lengths.
+Public input strings may describe later circuits directly; they need
+not be passed through $F_s$.
+
+\begin{figure}[!t]
 \centering
 \fbox{%
 \begin{minipage}{0.95\textwidth}
@@ -252,3 +204,71 @@ Reject malformed commands and commands whose conditions do not hold.
 \caption{The ideal MPC task: input commitment, evaluation, and timed outputs.}
 \label{fig:mpc-execution}
 \end{figure}
+
+The dependence on public inputs and outputs through round $s-2$ makes
+$F_{s+1}$ available before round $s$ receives its inputs.  An application
+whose next circuit depends on its most recent public inputs or output
+can insert identity circuits in the even rounds:
+\[
+  F_{2j}(\sigma,\epsilon)=(\sigma,\epsilon,\epsilon).
+\]
+The odd rounds perform the application computations.  An identity round
+has no application inputs or private outputs; its implementation transfers
+the encrypted state to the following garbled round.
+
+\subsection{Registration and execution}
+\label{sec:mpc-execution}
+
+Figures~\ref{fig:mpc-registration} and~\ref{fig:mpc-execution} together
+define $\FMPC[G]$.  All messages carry the session identifier $\sid$.
+Registration produces the same public identifier format as
+Figure~\ref{fig:protocol-steps}: $\pid=(\ncek,\sigvk)$.
+The ideal task uses these strings as identifiers.  It samples the NCE
+registration string using $\SimNCE$ and gives the associated explanation
+material to the adversary, together with the independently generated
+signing key and its tape.  These are the extra registration values on
+the upward arrow from $\FMPC$ to $\mathcal S$ in
+Figure~\ref{fig:model-simulation}; they contain no application inputs.
+In the realization proof, they let the simulator explain the keys and
+tapes exposed by the implementation without choosing the application's
+pids itself.
+
+The adversary chooses when to announce each round and when to proceed.
+An announcement assigns the next unused application registrations to
+input providers and output recipients, in that order.  Input providers
+receive their circuit and assignment at the next tick.  A subsequent
+$\Proceed$ command starts a one-slot input window at the following tick.
+The functionality freezes the inputs available at that tick.  During
+the window, $\CommitInput$ fixes an honest provider's selected input;
+$\CorruptInput$ supplies a corrupted provider's contribution.  At the
+ending tick, the remaining honest contributions are fixed.  A missing
+contribution has secret part $0^{\ell_{s,a}}$ and public part $\epsilon$.
+Only the secret components enter the circuit; the committed public
+components enter the history used by $G$.
+
+The common public output $\ypub_s$ and corrupt recipients' private
+outputs are then given to the adversary.  Honest recipients receive their
+private outputs two ticks later.  This matches the label and output phases of
+Figure~\ref{fig:protocol-schedule}; an intervening corruption exposes an
+already-computed output before its delivery.  Once the input window is
+started, these events are driven by the clock.
+
+\subsection{Realization}
+\begin{theorem}[Ongoing MPC in the YASO model]
+\label{thm:yaso-mpc}
+Fix a reactive task rule $G$ with the public size bounds of
+Section~\ref{sec:reactive-task} and a constant $0\le p<1/3$.
+Use an adaptive universal sampler in the random-oracle model, adaptively
+private projective garbling, full and receiver NCE with tape exposure,
+one-time signatures for the signed input records, robust Shamir sharing,
+and IND-CPA state encryption, with the correctness and security properties
+of Section~\ref{sec:preliminaries}.
+
+With sharing threshold $t=\lambda$ and committee size $n=3\lambda+1$,
+the protocol $\Pi$ of
+Section~\ref{sec:construction}, executed by $\FLedger[\Pi]$ in the
+synchronous YASO model of Section~\ref{sec:ledger}, computationally
+UC-realizes the ideal task $\FMPC[G]$ defined above.
+Setup fixes bounds on individual samples and requires no advance bound
+on the number of I/O rounds.
+\end{theorem}

@@ -1,0 +1,93 @@
+\subsection{Projective Garbling}
+\label{app:garbling}
+
+For the scheme of Section~\ref{sec:garbling}, the labels and common
+encoding material have polynomial length.
+Correctness requires that, for every polynomial bound on circuit size,
+there is a negligible function $\varepsilon$ such that every circuit $C$
+within that bound satisfies
+\begin{equation}
+\label{eq:garbling-correctness}
+  \Pr_{(\GC,e)\sample\Garble(1^\lambda,C)}
+  \bigl[\forall x\in\bits^n:\;
+    \Eval(\GC,\Encode(e,x))=C(x)\bigr]
+    \ge 1-\varepsilon(\lambda).
+\end{equation}
+We strengthen the fixed-input correctness clause of Hemenway et al.\
+\cite[full version, Definition~1]{HemenwayEtAl2016AdaptiveGarbling}
+by requiring one sampled garbling to be correct for all inputs
+simultaneously.  This covers inputs chosen after seeing $\GC$.
+The perfect-correctness convention of Garg and Srinivasan~
+\cite[full version, Definition~3.7]{GargSrinivasan2018AdaptiveGarbling}
+also implies this requirement.
+
+\subsubsection{Adaptive privacy}
+Write $\mathcal S=(\SimGarble,\SimEncode)$ for the simulator.
+The experiments $\GarbleReal_{\mathcal A}(1^\lambda)$ and
+$\GarbleIdeal_{\mathcal A,\mathcal S}(1^\lambda)$ initially give
+$1^\lambda$ to the efficient adversary $\mathcal A$ and offer these
+commands:
+\begin{description}
+  \item[$\GarbleCircuit(C)$.]
+    Store $C$.  In the real experiment, compute
+    $(\GC,e)\sample\Garble(1^\lambda,C)$.
+    In the ideal experiment, compute
+    $(\GC,\SimState)\sample
+    \SimGarble(1^\lambda,\Topo(C))$.
+    Return $\GC$, retaining $e$ or $\SimState$ privately.
+  \item[$\EncodeInput(x)$.]
+    For $x\in\bits^n$, compute $X\gets\Encode(e,x)$ in the
+    real experiment.  In the ideal experiment, compute
+    $X\sample\SimEncode(\SimState,C(x))$.  Return $X$.
+  \item[$\Finish(b)$.]
+    Terminate and output $b\in\bits$.
+\end{description}
+There is at most one accepted $\GarbleCircuit$ command, followed
+by at most one accepted $\EncodeInput$ command.  Malformed,
+out-of-order, or repeated commands return $\bot$ without changing state.
+The adversary may terminate early; termination without an output bit is
+interpreted as $\Finish(0)$.
+
+\begin{definition}[Adaptive garbling privacy]
+\label{def:adaptive-garbling}
+A garbling scheme has adaptive simulation privacy if there exists an
+efficient simulator $\mathcal S$ such that, for every efficient adversary
+$\mathcal A$, there is a negligible function $\varepsilon_{\mathcal A}$
+satisfying
+\[
+  \left|
+    \Pr[\GarbleReal_{\mathcal A}(1^\lambda)=1]
+    -\Pr[\GarbleIdeal_{\mathcal A,\mathcal S}(1^\lambda)=1]
+  \right|\leq\varepsilon_{\mathcal A}(\lambda).
+\]
+\end{definition}
+
+Thus the simulator produces $\GC$ before learning the output, and later
+produces $X$ from $C(x)$ alone, without receiving $x$ or the gate
+functions.  The adversary chooses $x$ after seeing $\GC$, but chooses
+all of $x$ before receiving $X$.  This is the coarse-grained adaptive
+privacy notion $\PrvOne$ of Bellare, Hoang, and Rogaway~
+\cite{BellareHoangRogaway2012Adaptive}; it does not permit several
+input encodings for the same garbling.  Here adaptivity concerns input
+selection, not corruption of a garbler.
+
+\begin{theorem}[Hemenway et al.]
+\label{thm:adaptive-garbling}
+If one-way functions exist, then projective garbling schemes with
+adaptive simulation privacy exist in the standard model.
+\end{theorem}
+Adaptive privacy follows from the projective construction and
+\cite[full version, Corollary~2]{HemenwayEtAl2016AdaptiveGarbling}.
+Its concrete instantiation also satisfies~\eqref{eq:garbling-correctness}.
+To see this, consider all four input-label combinations at every gate.
+For the inner encryption in Appendix~A of that paper, decryption under
+a wrong key accepts exactly when the final $\lambda$ bits of two PRF
+outputs coincide.  The acceptance condition does not involve the
+plaintext, even when that plaintext depends on a wire label.  For independently sampled
+labels its probability is negligible by PRF security.  A union bound
+over the polynomially many row tests and wire-label collisions gives
+one event outside which every gate evaluates correctly on every valid
+label combination.  Induction over gates then gives correctness for
+all inputs simultaneously.  The outer encryption has perfect
+correctness~\cite[full version, Definition~2, Figure~1, and Appendix~A]
+{HemenwayEtAl2016AdaptiveGarbling}.

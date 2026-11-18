@@ -1,7 +1,7 @@
 \section{Simulator}
 \label{sec:simulator-details}
 
-The simulator runs the ledger and protocol of Sections~\ref{sec:ledger}
+The simulator for Theorem~\ref{thm:yaso-mpc} runs the ledger and protocol of Sections~\ref{sec:ledger}
 and~\ref{sec:construction}, except for the seven replacement hooks defined
 in Section~\ref{sec:simulator-hooks}.  Figure~\ref{fig:simulator-patches}
 shows where these hooks are used.  We first specify the logistics of
@@ -417,5 +417,5 @@ with these tapes and recorded oracle answers to obtain their local
 configurations.  Disclose the
 state required by the ledger's corruption handler, including only the
 outputs computed in those activations.  As in Figure~\ref{fig:protocol-steps},
-$\ComputationStep$, a computation member runs its release test and
-returns its key; share completion and binding are simulator operations.
+$\ComputationStep$, a computation member returns its key if its release
+test holds.  The simulator performs share completion and binding.

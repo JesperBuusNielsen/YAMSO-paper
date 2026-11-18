@@ -130,9 +130,9 @@ sampler parameters $U$.  The resulting bundle $\GarbledRound_s$ gives
 everyone the same garbling, public keys, and encrypted packets for the
 participants while keeping the garbler's coins hidden.  The sampling description fixes $F_s$, the assigned
 parties, and the registered encryption keys for their packets (their
-\emph{delivery keys}).  Substituting a delivery key
-changes the description and gives an independent sample in
-the universal sampler's ideal experiment.  A fresh committee releases
+\emph{delivery keys}).  In the sampler's ideal experiment, substituting
+a delivery key changes which description's random tape is used.  These
+tapes are independent across distinct descriptions.  A fresh committee releases
 the nonce $Q_s$ only after the other fields are fixed, keeping the
 exact description unpredictable to the adversary until release.
 Figures~\ref{fig:shared-coins} and~\ref{fig:distribution-circuit}

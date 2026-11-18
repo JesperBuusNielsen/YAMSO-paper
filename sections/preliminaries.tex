@@ -1,9 +1,12 @@
 \section{Preliminaries}
 \label{sec:preliminaries}
 
-Algorithms are probabilistic polynomial time unless specified otherwise.
-An operation with a prescribed output may use randomness internally;
-its correctness requires that output except with negligible probability.
+Write $\lambda$ for the security parameter. Algorithms are probabilistic
+polynomial time unless specified otherwise. A randomized operation with
+a prescribed output must return that output except with negligible probability.
+For completeness, Appendix~\ref{app:primitive-security} gives the security
+experiments in the notation of our reductions and proves the auxiliary
+properties used below.
 
 \input{sections/universal-samplers}
 \input{sections/garbling}

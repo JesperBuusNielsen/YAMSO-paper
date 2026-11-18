@@ -57,15 +57,13 @@ The ledger records clock ticks as $\Tick$ entries in $L$; their number
 is the current round $r$.  At the start of each round it fixes a snapshot
 $L_r$, computes $(\Roles_r,\MaySpeak_r)=\Schedule(L_r)$, and fixes an input
 snapshot $x_{\pk,r}$ for each registered application party.
-During the round, it executes $\ComputationStep$ for each scheduled honest
-computation party and $\ApplicationStep$ for every honest application
-party registered at round start, in an order chosen by the adversary.
-Each executes at most once per round, using $L_r$ and, for application
-parties, $x_{\pk,r}$.  Registrations, postings, and inputs received during
+The adversary chooses the activation order.  The ledger runs a step only
+for a still-honest party that has yet to speak.  For a scheduled computation
+party it runs $\ComputationStep$ on $L_r$.  For each application party
+registered at round start it runs $\ApplicationStep$ using $L_r$ and
+$x_{\pk,r}$.  Each runs at most once per round.  Registrations, postings, and inputs received during
 the round enter the snapshots for the following round.
-The ledger stops executing a party's step
-algorithm after it speaks.  Scheduling governs posting, not private
-output: at the tick ending the round, an application party receives its
+At the tick ending the round, an application party receives its
 non-$\bot$ output whether or not it belongs to $\MaySpeak_r$.
 A still-silent party may be scheduled again.  An input provider can
 therefore receive its circuit and assignment before its input-posting
@@ -112,7 +110,7 @@ and a time slot between successive ticks permits polynomial-time
 computation.  Round $r$ occupies the slot starting at tick $r$, beginning
 with $r=1$.
 
-We let the adversary initiate registration for both computation and application parties via $\Register(\Class)$. An honest party cannot register itself by generating and posting its public key, since posting would count as its protocol message and prevent it from speaking again. The ledger cannot generate the keys and privately deliver the secret key, as outputs of an ideal functionality are visible to the environment. Instead, the ledger generates and retains the secret keys, with the public algorithms hardcoded into its execution to compute the honest party's outputs from the secret state and current ledger snapshot. Since registration requires only a trigger and the adversary controls scheduling, letting the adversary initiate registration suffices.
+We let the adversary initiate registration for both computation and application parties via $\Register(\Class)$. An honest party cannot register itself by generating and posting its public key, since posting would count as its protocol message and prevent it from speaking again. If the ledger returned the secret key to a dummy party, that party would forward it to the environment. The ledger therefore retains the key and runs the protocol's public step algorithms on the party's secret state and the ledger snapshot. Since registration requires only a trigger and the adversary controls scheduling, letting the adversary initiate registration suffices.
 
 Within a round, the adversary requests individual executions through
 $\Activate(\pk)$, interleaving them with postings and admissible
@@ -124,9 +122,6 @@ starting the next round.
 Registration is available at any time.  Application inputs may
 arrive between activations and are included in the next round's input
 snapshots.
-
-A party for which a 
-$\NoMsg$  record is appended may be scheduled again in a subsequent round, as it has not previously spoken. This is deliberate and results in a stronger model.
 
 We assume perfectly synchronized clocks and private output delivery at
 the common tick.  In a model with bounded clock skew, parties would

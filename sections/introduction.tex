@@ -27,41 +27,15 @@ can achieve under a severe restriction.  The spirit is similar to that
 of the private simultaneous messages model, introduced by Feige, Kilian,
 and Naor and developed by Ishai and
 Kushilevitz~\cite{FeigeKilianNaor1994MinimalModel,IshaiKushilevitz1997PSM}.
-We study YASO in this spirit.  A deliberately idealized model can
+A deliberately idealized model can
 suggest techniques with uses beyond the setting in which they were
-discovered.
-
-\paragraph{The ledger and corruption model.}
-A synchronous public ledger supplies a setup string and records a growing
-list of registered public keys and messages.  Everyone sees the same
-record.  Each party may post at most once, and subsequent corruption
-cannot withdraw or overtake an honest posting.  Parties retain their
-secret state and randomness.
-We call input providers and output recipients \emph{application parties}.
-The \emph{computation parties} perform the auxiliary work on their behalf.
-
-Each computation party is independently corrupt at registration with
-probability $p$.  Our construction uses $p<1/3$.  This abstracts a
-hidden random assignment of roles to a population of machines, some
-already compromised.  We give the adversary these initial corruptions
-immediately.  Learning their state helps the adversary without giving
-the simulator any application inputs or outputs.  An initially honest
-computation party is protected from targeted corruption while silent.
-Once it speaks, the adversary may corrupt it, and may do so for every
-speaker.
-
-Application roles are often tied to particular users.  The adversary
-may choose to corrupt any input provider or output recipient at any
-time, even while silent.  It may also choose to leave them honest, in
-which case their private data must remain protected.
-
-We offer two examples to illustrate where techniques discovered in the
-YASO model might improve security.
+discovered.  That said, we propose two practical settings to illustrate where
+such techniques could be useful.
 
 \paragraph{Publishing from behind a firewall.}
 Consider an MPC service in a perimeter network (a DMZ).  Each company
 keeps its private data behind its firewall and publishes a protected
-input to the ledger, much as an internal application might publish
+input to a public ledger, much as an internal application might publish
 content to a web server in a DMZ.  All messages across the company
 firewall go outward to the ledger.  A client submits its request to
 the perimeter service.  Upon payment for an approved function $F$, the
@@ -91,68 +65,135 @@ receiving key.  Each party is trusted with its own batch.
 Batching could move provisioning off the online path.  If preparing
 workers in parallel takes time $T$ and an online round trip takes time
 $\tau$, a reserve of $\lceil T/\tau\rceil$ rounds' worth of workers
-can cover the delay while the next batch is prepared.  The formal
-ledger used below generates its own keys at registration.
+can cover the delay while the next batch is prepared.
+
+\paragraph{The ledger and corruption model.}
+In our model, a synchronous public ledger supplies a setup string, generates
+key pairs at registration, and records public keys and messages.  Everyone sees the same
+record.  Each party may post at most once, and subsequent corruption
+cannot withdraw or overtake an honest posting.  Parties retain their
+secret state and randomness.
+We call input providers and output recipients \emph{application parties}.
+The \emph{computation parties} perform the auxiliary work on their behalf.
+
+Each computation party is independently corrupt at registration with
+probability $p$.  Our construction uses $p<1/3$.  This abstracts a
+hidden random assignment of roles to a population of machines, some
+already compromised.  We give the adversary these initial corruptions
+immediately.  Learning their state helps the adversary without giving
+the simulator any application inputs or outputs.  An initially honest
+computation party is protected from targeted corruption while silent.
+Once it speaks, the adversary may corrupt it, and may do so for every
+speaker.
+
+Application roles are often tied to particular users.  The adversary
+may choose to corrupt any input provider or output recipient at any
+time, even while silent.  It may also choose to leave them honest, in
+which case their private data must remain protected.
 
 \paragraph{The task and construction.}
-We give a UC feasibility construction for ongoing MPC in this ledger
-model.  Each I/O round applies a public Boolean circuit to the private
-state and new secret inputs.  It produces the next state, private outputs
-for designated recipients, and one common public output.  Public input
-strings and public outputs enter the history that determines future
-circuits.
+Our protocol UC-realizes ongoing MPC in this ledger model
+(Theorem~\ref{thm:yaso-mpc}).
+Each I/O round applies a public Boolean circuit to the current private
+state and new secret inputs. It produces the next state, private outputs
+for designated recipients, and one common public output. Public inputs
+and outputs determine the choice of later circuits.
 
-Each round uses an independently sampled garbling.  To carry state across
-rounds, prepare the successor before evaluating the current circuit.
-The successor's sample publishes a public key and embeds the matching
-secret key in its garbling.  The current circuit takes that public key
-as an input and encrypts its outgoing state under it.  Anyone can carry
-the resulting ciphertext forward, and the successor decrypts it internally.
-One round of lookahead in circuit selection suffices.  Applications can
-insert identity rounds when their next choice depends on their most
-recent public inputs and outputs.  Adaptive garbling accommodates the
-incoming state ciphertext and successor key being fixed after a garbling
-is published~\cite{HemenwayEtAl2016AdaptiveGarbling}.
+Each round uses an independently sampled garbling. To pass state between
+two garblings, prepare the successor first. The successor
+garbling comes with a public key and contains the matching secret key.
+The current circuit takes that public key as input and encrypts its
+outgoing state under it. Anyone can carry the ciphertext forward for
+the successor to decrypt. This requires one round of lookahead in circuit
+selection. Applications can insert identity rounds when the next circuit
+depends on the most recent public inputs or outputs. Adaptive
+garbling allows the incoming ciphertext and successor key to be supplied
+after the garbling is public~\cite{HemenwayEtAl2016AdaptiveGarbling}.
 
-The adaptive universal sampler of Hofheinz et
-al.~\cite{HofheinzEtAl2016UniversalSamplers} supplies the garbling without
-entrusting any participant with the garbler's coins.  From public
-parameters $U$ and the same sampling description, everyone derives the
-same garbling, public keys, and encrypted packets.  The description fixes
-the round circuit and the participants' registered encryption keys, or
-\emph{delivery keys}, before a fresh committee releases the nonce that
-completes it.  Changing a delivery key gives an independent sample in
-the sampler's ideal experiment.
+Who garbles the round? With the adaptive universal sampler of Hofheinz
+et al.~\cite{HofheinzEtAl2016UniversalSamplers}, everyone derives the
+same garbling and encrypted packets from public parameters and a round
+description, and no participant needs the garbler's coins. The description
+fixes the round circuit and the participants' registered encryption keys
+(their \emph{delivery keys}) before a fresh committee releases the nonce
+that completes it. Substituting a delivery key changes the description.
+In the sampler's ideal experiment, each distinct description has its own
+independent random tape.
 
-An input provider encrypts its secret string under a fresh input key
-from the sample and signs the ciphertext together with its public string
-for this round and sample.  Its first valid record before the deadline
-fixes both.  What the label committees see are the \emph{public bits}
-of the accepted or default ciphertext records, incoming state ciphertext, and
-successor key.  For each such wire the sampler shares its two labels
-among separate committees, encrypting each share under its member's
-delivery key.  Honest members of the selected committee post their
-secret keys, allowing everyone to reconstruct the selected label.
-Honest members of the other committee stay silent and are never reused.
-Corrupting the speakers therefore adds no honest shares of the unused
-label.  This matters even for a public key.  If both labels on each
-successor-key wire were released, an evaluator could have the outgoing
-state encrypted to its own key.  On the selected labels the garbling
-decrypts the secret inputs, computes the round, and masks each private
-output bit with a pad encrypted to its recipient.
+An input provider signs its public input together with an encryption of
+its secret input under a fresh key from the sample. Its first valid record
+before the deadline fixes both. The input records, incoming state ciphertext,
+and successor key now supply public bits to the garbling.
+For each wire, the sampler shares its two labels among disjoint committees
+and encrypts each share under its member's delivery key. Honest members of
+the selected committee post their keys so anyone can reconstruct the
+label. Honest members of the other committee stay silent and are never
+reassigned. Corrupting every speaker still yields no honest share of the
+unused label. This also protects the state transfer. Releasing both labels
+on every successor-key wire would let an evaluator redirect the encrypted
+state to its own key.
 
-Input encryption uses full non-committing encryption so that the
-simulator can explain an honest sender's coins or obtain a key for
-interpreting a corrupted provider's submission, depending on when
-corruption occurs.  Committee shares and output pads use receiver
-non-committing encryption.  Full NCE admits constant ciphertext expansion
-for long inputs~\cite{BrakerskiEtAl2020ConstantNCE}.
-Section~\ref{sec:overview-construction} follows one I/O round through
-the construction.
+Each private output is masked with a pad encrypted to its recipient.
+Full non-committing encryption lets the simulator explain a provider's
+encryption coins after an honest posting or decrypt its submission if
+corruption comes first. Committee shares and output pads need only
+receiver non-committing encryption. Full NCE permits constant ciphertext
+expansion for long inputs~\cite{BrakerskiEtAl2020ConstantNCE}.
+Section~\ref{sec:overview-construction} follows one round from preparation
+to evaluation. The sampler uses indistinguishability obfuscation in the
+random-oracle model. Setup fixes bounds for each sample and serves an
+ongoing computation with no advance bound on the number of rounds.
 
-The universal sampler uses indistinguishability obfuscation in the
-random-oracle model.  Each round respects the sampler's size bounds,
-while a single setup supports an ongoing computation whose number of
-rounds need not be fixed in advance.  The aim is to understand what
-silence can protect when every speaker's state is exposed, and to
-identify techniques for more practical erasure-free protocols.
+\subsection{Related work}
+\label{sec:related-work}
+
+\paragraph{YOSO.}
+Benhamouda et al.~\cite{BenhamoudaEtAl2020BlockchainSecret} used a
+sequence of anonymous committees to maintain a shared secret on a public
+blockchain.  Gentry et al.~\cite{GentryEtAl2021YOSOFull} formalized the
+one-message roles underlying this approach and separated the MPC run by
+the roles from their assignment to machines.  In the compiler of
+Canetti et al.~\cite{CanettiEtAl2023TamingYOSO}, a machine erases its
+role keys and local state immediately before posting.  The asynchronous
+YOSO protocol of Damg{\aa}rd et al.~\cite{DamgardEtAl2025AsyncYOSO}
+likewise erases the randomness that produced the message.
+The closest precedent for our label committees is the YaOSO protocol of
+Kolby, Ravi, and Yakoubov~\cite{KolbyRaviYakoubov2024ConstantYOSO}.
+An input role garbles its next-message function and shares its input-wire
+labels with a fresh committee.  Members release shares of the labels
+selected by the public transcript.  In YASO, a member that releases a
+share can subsequently lose its entire state.  This is why we put the
+two labels of each wire in disjoint committees.
+
+\paragraph{Fluid MPC.}
+Choudhuri et al.~\cite{ChoudhuriEtAl2021FluidMPC} introduced fluid MPC
+to let servers join and leave a computation.  Their maximally fluid
+protocol hands shared state to a new committee after one communication
+round.  It already tolerates corruption without erasures.  In their
+\emph{retroactive} corruption model, corruption reveals a server's past
+state and counts against the threshold of every committee to which it
+belonged.  Each such committee must retain an honest majority.
+Yu et al.~\cite{YuEtAl2025ADMPC} also account for past committee
+memberships in asynchronous dynamic MPC.  In YASO the adversary can
+corrupt every speaker, even if all members of one committee speak.  The
+honest members of the committee holding the unused label remain silent.
+
+\paragraph{Erasures and obfuscation.}
+In the classical MPC setting, Beaver and Haber~\cite{BeaverHaber1992Dynamic}
+used erasures to withstand adaptive corruption over insecure channels.
+Canetti, Feige, Goldreich, and Naor~\cite{CanettiEtAl1996AdaptiveMPC}
+introduced non-committing encryption and obtained general MPC in this
+setting even when parties keep their entire histories.  Garg and
+Polychroniadou~\cite{GargPolychroniadou2015AdaptiveMPC} later used
+indistinguishability obfuscation (iO) for two-round adaptively secure MPC
+without erasures.  In work on YOSO role assignment, Campanelli
+et al.~\cite{CampanelliEtAl2022EncryptionFuture} discuss using iO-based
+witness encryption to address a message to a future lottery winner.
+
+A closer precedent for our use of universal sampling is the proposal of
+Abram, Obremski, and Scholl~\cite{AbramObremskiScholl2023PartyDynamic,Abram2024Thesis}
+to sample correlated randomness for subsets of parties that register
+independently.  Their model fixes each party's corruption status at
+registration.  We know of no earlier YOSO or fluid MPC protocol that
+uses a universal sampler to generate successive garblings while allowing
+every speaker to be corrupted after posting.
