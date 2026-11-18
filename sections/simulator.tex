@@ -54,7 +54,7 @@ $z_{s,j}=\ysec_{s,j}\oplus r_{s,j}$.  With $z_s$ the resulting vector
 and $\nu_s$ the public outgoing state length, it computes
 \[
    c_s\sample\PKE.\Enc(\statepk_{s+1},0^{\nu_s}),\qquad
-   X_s\sample\SimEncode(\tau_s,(z_s,c_s,\ypub_s)).
+   X_s\sample\SimEncode(\tau_s,(c_s,z_s,\ypub_s)).
 \]
 The same $c_s$ becomes a public input to the successor.  The simulator
 can thus pass state ciphertexts between rounds without learning
@@ -63,7 +63,7 @@ record supplies $\ysec_{s,j}$, fixing the pad $r_{s,j}=z_{s,j}\oplus
 \ysec_{s,j}$ that its delivery key must explain.
 
 Write $X_s=(\GarbleAux,\widehat L_1,\ldots,\widehat L_{m_s})$.
-The public ciphertext records, incoming state ciphertext, and successor
+The incoming state ciphertext, public input records, and successor
 public key determine which committee will speak for each wire $w$.
 In that committee the simulator completes the already exposed shares
 to a sharing of $\langle\GarbleAux,\widehat L_w\rangle$

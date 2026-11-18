@@ -174,7 +174,7 @@ between hooks invoke the versions selected by the current experiment.
  \]
  with the already retained constants, runs
  $(\GC_s,e_s)\sample\Garble(1^\lambda,C_s)$, and stores $e_s$.
- $\Encode(s,(z_s,c_s,\ypub_s))$ instead computes
+ $\Encode(s,(c_s,z_s,\ypub_s))$ instead computes
  $X_s\gets\Encode(e_s,\InputBits_s)$ from the public input string fixed
  by the logistics.  Retain the same prescribed result for the existing
  public-evaluation check.  No garbling-simulator algorithm is called.
@@ -440,7 +440,7 @@ $\Garbling_0.\Encode$ and the public input of the successor.  Each key
 serves one predecessor, so closure requests at most one ciphertext.
 
 The successor's $\Garbling_0.\Prepare$ uses only the topology of
-$\RoundCircuit_{s+1}$, and its $\Encode$ takes the prescribed result.
+$C_{s+1}$, and its $\Encode$ takes the prescribed result.
 The first guard that decrypts $c_s$ enters at $H_3$.  The key-generation
 coins of $\SampleCircuit_{s+1}$ and the encryption coins of
 $\StateCiphertext(s)$ are internal to these calls, so neither appears in
@@ -531,7 +531,7 @@ ciphertext and the preceding $\BadCorrectness$ identifies its decryption
 with $\sigma_{s-1}$. For $s=1$ the state is empty. Applying $F_s$ and
 using the same pads, successor key, and outgoing encryption tape gives
 \begin{equation}
- C_s(\InputBits_s)=(z_s,c_s,\ypub_s).
+ C_s(\InputBits_s)=(c_s,z_s,\ypub_s).
  \label{eq:round-output-at-closure}
 \end{equation}
 The ideal reply thus has the law of $\Garbling_0.\Encode$.
@@ -794,7 +794,7 @@ steps extend every agreeing prefix up to its first failure.
  Each selected committee supplies at least $n-t$ correct positions.
  Robust reconstruction gives $X_s=\Encode(e_s,\InputBits_s)$.
  Equation~\eqref{eq:round-output-at-closure} identifies the plaintext
- result with $(z_s,c_s,\ypub_s)$, and garbling correctness gives the same
+ result with $(c_s,z_s,\ypub_s)$, and garbling correctness gives the same
  evaluated result.  This advances the induction to the next circuit.
  \item[Delivery and corruption ($\PO{9}$).]
  Decrypting the pad gives the private ideal output.  Each honest

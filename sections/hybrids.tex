@@ -30,7 +30,7 @@ input is known.
 At preparation the reduction submits the fully specified $C_s$ to
 the adaptive garbling game.  At closure it has the public input string
 \[
-  \InputBits_s=(\InputRecords_s,c_{s-1},\statepk_{s+1}).
+  \InputBits_s=(c_{s-1},\InputRecords_s,\statepk_{s+1}).
 \]
 Honest records decrypt to the committed inputs except on a correctness
 failure.  For a corrupt record, the simulator used the same decryption
@@ -39,7 +39,7 @@ decrypts to the preceding ideal state, with empty state in round~1.
 Consequently
 \[
  C_s(\InputBits_s)=
- \bigl(\ysec_s\oplus r_s,\,\PKE.\Enc(\statepk_{s+1},\sigma_s;\rho_s),\,
+ \bigl(\PKE.\Enc(\statepk_{s+1},\sigma_s;\rho_s),\,\ysec_s\oplus r_s,\,
        \ypub_s\bigr).
 \]
 This is precisely the tuple previously supplied to $\SimEncode$.

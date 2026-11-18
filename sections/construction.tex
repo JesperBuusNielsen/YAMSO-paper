@@ -313,8 +313,8 @@ to the sampling circuit.  The protocol reserves a fresh committee for
 each pair $(w,b)$, with all these committees pairwise disjoint.
 
 For this use, $\InputBits_s$ is the augmented circuit's public input:
-accepted or default application-input records, the incoming state
-ciphertext, and the successor's state public key, in circuit-wire order.
+the incoming state ciphertext, the accepted or default application-input
+records, and the successor's state public key, in circuit-wire order.
 Figure~\ref{fig:protocol-schedule} reconstructs this string from the
 completed input-posting round and earlier public data.
 
@@ -448,11 +448,11 @@ The application circuit $F_s$ updates the private state and produces
 private recipient outputs $\ysec_s$ and one public output $\ypub_s$.
 We use the reactive-task rule of Section~\ref{sec:reactive-task}:
 $F_s=G\bigl(s,(\xpub_t,\ypub_t)_{1\le t\le s-2}\bigr)$, with empty history for $s=1,2$.
-The plaintext circuit $\RoundCircuit_s$ in
-Figure~\ref{fig:round-circuit} surrounds it with input decryption,
-state transfer, and output masking.  Square brackets name parameters
-encoded into a circuit; parentheses contain inputs supplied when it is
-evaluated.
+Figure~\ref{fig:round-circuit} constructs the plaintext circuit $C_s$
+that surrounds $F_s$ with input decryption, state transfer, and output
+masking.  The square brackets in $\RoundCircuit_s[\ldots]$ name the
+constants used to construct $C_s$.  Parentheses give its inputs at
+evaluation.
 
 \begin{figure}[tbp]
 \centering
@@ -482,24 +482,24 @@ parameters, and bracketed values occupy fixed constant-gate positions.
 \GadgetHeading{Primitives}
 \begin{description}
   \item[{$\RoundCircuit_s[\statesk_s,\boldsymbol{\inputsk}_s,
-                         \boldsymbol\delta_s,\boldsymbol r_s,\rho_s]
-          (\InputRecords_s,c_{s-1},\statepk_{s+1})$.}]
+                         \boldsymbol\delta_s,\boldsymbol r_s,\rho_s]$.}]
     Encoded secret parameters: the state-decryption key $\statesk_s$;
     input-decryption keys $\boldsymbol{\inputsk}_s=(\inputsk_{s,a})_a$
     and their random tapes $\boldsymbol\delta_s=(\delta_{s,a})_a$;
     output pads $\boldsymbol r_s\in\bits^{h_s}$; and state-encryption
     tape $\rho_s$.
 
-    Input: $\InputRecords_s=(z_{s,a})_a$, with
-    $z_{s,a}\in\bits^{1+\kappa_{s,a}}$;
-    incoming state ciphertext $c_{s-1}\in\bits^{\kappa_{s-1}^{\mathsf{state}}}$
-    for $s>1$, or $c_0=\epsilon$ for $s=1$; and a string
-    $\statepk_{s+1}$ in the nonempty fixed-width IND-CPA public-key
-    encoding for $\nu_s$-bit messages.
-    Concatenate these input fields in the displayed order, with providers
-    in increasing index order; let $m_s$ be their total bit length.
-    Output: $(\MaskedOutputs_s,c_s,\ypub_s)\in
-      \bits^{h_s}\times\bits^{\kappa_s^{\mathsf{state}}}
+    Define the Boolean circuit $C_s(c_{s-1},\InputRecords_s,\statepk_{s+1})$
+    as follows.  Its first input is the state ciphertext
+    $c_{s-1}\in\bits^{\kappa_{s-1}^{\mathsf{state}}}$ for $s>1$, or
+    $c_0=\epsilon$ for $s=1$.  Its second is the vector of records
+    $\InputRecords_s=(z_{s,a})_a$ with $z_{s,a}\in\bits^{1+\kappa_{s,a}}$.
+    Its third is $\statepk_{s+1}$ in the nonempty fixed-width IND-CPA
+    public-key encoding for $\nu_s$-bit messages.  Concatenating these
+    fields in order, with providers in increasing index order, gives
+    $\InputBits_s\in\bits^{m_s}$.
+    The output wires encode $(c_s,\MaskedOutputs_s,\ypub_s)\in
+      \bits^{\kappa_s^{\mathsf{state}}}\times\bits^{h_s}
       \times\bits^{\ell_s^{\mathsf{pub}}}$.
 
     \begin{enumerate}
@@ -512,19 +512,18 @@ parameters, and bracketed values occupy fixed constant-gate positions.
         and replace any result outside $\bits^{\ell_{s,a}}$ by $0^{\ell_{s,a}}$.
       \item If $s=1$, set $\sigma=\epsilon$.
         Otherwise compute $\sigma\gets\PKE.\Dec(\statesk_s,c_{s-1})$.
-        If $\sigma\notin\bits^{\nu_{s-1}}$, return the all-zero output.
+        If $\sigma\notin\bits^{\nu_{s-1}}$, output zeros on all output wires and halt.
       \item Compute $(\sigma',\ysec_s,\ypub_s)=F_s(\sigma,(\xsec_{s,a})_a)$.
       \item Compute
         \[
           c_s\gets\PKE.\Enc(\statepk_{s+1},\sigma';\rho_s).
         \]
         If the result is not in $\bits^{\kappa_s^{\mathsf{state}}}$,
-        return the all-zero output.
-        Set $\MaskedOutputs_s=\ysec_s\oplus\boldsymbol r_s$ and return
-        $(\MaskedOutputs_s,c_s,\ypub_s)$.
+        output zeros on all output wires and halt.
+        Set $\MaskedOutputs_s=\ysec_s\oplus\boldsymbol r_s$ and output
+        $(c_s,\MaskedOutputs_s,\ypub_s)$.
     \end{enumerate}
-    The all-zero output is
-    $(0^{h_s},0^{\kappa_s^{\mathsf{state}}},0^{\ell_s^{\mathsf{pub}}})$.
+    Return the circuit $C_s(\cdot,\cdot,\cdot)$.
 \end{description}
 \end{minipage}}
 \caption{The deterministic plaintext circuit for one I/O round.}
@@ -546,7 +545,7 @@ Boolean computation.
 \label{sec:distribution-circuit}
 
 Figure~\ref{fig:distribution-circuit} generates the hidden constants,
-garbles $\RoundCircuit_s$, and prepares its encrypted label and output
+garbles the resulting circuit $C_s$, and prepares its encrypted label and output
 packets.  The registered role keys are public parameters.
 The state and input-decryption keys are generated inside the
 distribution circuit.
@@ -604,11 +603,12 @@ Section~\ref{sec:universal-samplers}.
         decryption and $\rho_s$ for outgoing state encryption, of the
         lengths required by those algorithms.
         Choose $\boldsymbol r_s\sample\bits^{h_s}$.
-        Garble the instantiated circuit from Figure~\ref{fig:round-circuit}:
+        Construct the plaintext circuit using Figure~\ref{fig:round-circuit}
+        and garble it:
         \[
-          (\GC_s,e_s)\sample\Garble\bigl(1^\lambda,
-            \RoundCircuit_s[\statesk_s,\boldsymbol{\inputsk}_s,
-                \boldsymbol\delta_s,\boldsymbol r_s,\rho_s]\bigr).
+          C_s\gets\RoundCircuit_s[\statesk_s,\boldsymbol{\inputsk}_s,
+                \boldsymbol\delta_s,\boldsymbol r_s,\rho_s],
+          \qquad (\GC_s,e_s)\sample\Garble(1^\lambda,C_s).
         \]
       \item Prepare the label ciphertext array
         \[
@@ -643,7 +643,7 @@ on its input tape.  The oracle access belongs to $\Sample^H$.
 
 The resulting bundle supplies the public keys used by $\Inputs$ and
 the ciphertext arrays used by $\Labels$.  Later evaluation of
-$\GC_s$ produces $(\MaskedOutputs_s,c_s,\ypub_s)$.
+$\GC_s$ produces $(c_s,\MaskedOutputs_s,\ypub_s)$.
 Recipient $j$ decrypts $\OutputPackets_{s,j}$ to recover its pad
 $r_{s,j}$ and unmasks the corresponding output bit.
 The raw round-circuit description, secret keys, encoding key, and
@@ -744,8 +744,8 @@ parameters of $\Pi$.
 
 There are four phases.  A coin phase releases the nonce and makes its
 garbled round available.  An input phase collects signed encrypted
-inputs.  A label phase releases their encoding together with the encoding
-of the state ciphertext and successor key.  An output phase lets recipients
+inputs.  A label phase releases the encoding of the incoming state
+ciphertext, input records, and successor key.  An output phase lets recipients
 recover their private outputs.  Each phase occupies one ledger round;
 its postings are used from the next snapshot onward.  Two garbled rounds
 are prepared before the first input phase, and thereafter one new round
@@ -803,7 +803,7 @@ The phase sequence starts with $\CoinPhase(1)$ and then repeats
             \]
             Set $\InputRecords_s=(z_{s,a})_a$ and
             $\xpub_s=(\xpub_{s,a})_a$.  Concatenate
-            $(\InputRecords_s,c_{s-1},\statepk_{s+1})$ to obtain
+            $(c_{s-1},\InputRecords_s,\statepk_{s+1})$ to obtain
             $\InputBits_s$, in the wire order of
             Figure~\ref{fig:round-circuit}.
           \item[$\LabelPhase(s)$.]
@@ -813,7 +813,7 @@ The phase sequence starts with $\CoinPhase(1)$ and then repeats
             Compute $X_s\gets\Labels.\Recover
               (\InputBits_s,\LabelPackets_s,(\widehat{\boldsymbol{\sk}}_w)_w)$.
             Evaluate $\Eval(\GC_s,X_s)$ and decode its output as
-            $(\MaskedOutputs_s,c_s,\ypub_s)$ with the lengths of
+            $(c_s,\MaskedOutputs_s,\ypub_s)$ with the lengths of
             Figure~\ref{fig:round-circuit}.
           \item[$\OutputPhase(s)$.] No public calculation.
         \end{description}

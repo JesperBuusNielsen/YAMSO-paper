@@ -121,7 +121,7 @@ reveals them.
  \begin{aligned}
  z_s&\gets\OutputPads_0.\Close(s,\boldsymbol y_s^{\mathsf{cor}}),\\
  c_s&\gets\StateCiphertext_0(s),\\
- X_s&\gets\Garbling_0.\Encode(s,(z_s,c_s,\ypub_s)),\\
+ X_s&\gets\Garbling_0.\Encode(s,(c_s,z_s,\ypub_s)),\\
  &\Sharing_0.\Open(s,\InputBits_s,X_s).
  \end{aligned}
  \]
@@ -278,12 +278,12 @@ once; repeated disclosures or sample requests reuse it.
 \item[$\Garbling_0$.]\phantomsection\label{hook:garbling}
  Replace the garbling and input encoding.
  The call $\Prepare(s)$ returns $\GC_s$ and retains $\tau_s$, using
- $(\GC_s,\tau_s)\sample\SimGarble(1^\lambda,\Topo(\RoundCircuit_s))$,
+ $(\GC_s,\tau_s)\sample\SimGarble(1^\lambda,\Topo(C_s))$,
  computing the topology from the public dimensions and Boolean template.
  No secret constants need to be instantiated.
- The one call $\Encode(s,(z_s,c_s,\ypub_s))$ computes and retains
+ The one call $\Encode(s,(c_s,z_s,\ypub_s))$ computes and retains
  \[
-   X_s\sample\SimEncode(\tau_s,(z_s,c_s,\ypub_s)).
+   X_s\sample\SimEncode(\tau_s,(c_s,z_s,\ypub_s)).
  \]
  Retain this prescribed public result and return $X_s$.
 
