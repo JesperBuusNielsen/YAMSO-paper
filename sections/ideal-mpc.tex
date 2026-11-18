@@ -206,6 +206,10 @@ $(0^{\ell_{s,a}},\epsilon)$.
   \item[Clock tick from $\FClock$.]
     Increment $r$.  Process all events assigned to this tick, in the
     following order and in increasing $s$ within each event type.
+    In items~2--3, $\Deliver(P,v)$ outputs $v$ to an honest pid $P$.
+    For a corrupt $P$, give $(\Deliver,r,P,v)$ to the adversary at this
+    visit, before visiting the next pid.  Record $(r,v)$ and its
+    destination in $P$'s application record.
     \begin{enumerate}
       \item If $r=\InputClose_s$, set each still-unset
         $\CommittedInput_{s,a}$ to $\ChosenInput_{s,a}$ when its provider
@@ -223,15 +227,12 @@ $(0^{\ell_{s,a}},\epsilon)$.
         $\pid^{\mathsf{out}}_{s,j}$.  Give $(s,\xpub_s,\ypub_s)$ and
         the addressed private output bits of corrupt recipients to the
         adversary.
-      \item If $r=\OutputTick_s$, output $\ysec_{s,j}$ to each still-honest
-        pid $\pid^{\mathsf{out}}_{s,j}$, in increasing $j$, and mark the
-        deliveries in their records.  Set $\NextRound=s+1$.
-      \item For each $s$ with $r=\ReadyTick_s$, in increasing $s$, output
-        \[
-          (s,F_s,\boldsymbol{\pid}_s)
-        \]
-        to each honest $\pid^{\mathsf{in}}_{s,a}$, in increasing $a$.
-        Record these outputs in the corresponding application records.
+      \item If $r=\OutputTick_s$, run
+        $\Deliver(\pid^{\mathsf{out}}_{s,j},\ysec_{s,j})$ for each $j$
+        in increasing order.  Set $\NextRound=s+1$.
+      \item If $r=\ReadyTick_s$, run
+        $\Deliver(\pid^{\mathsf{in}}_{s,a},(s,F_s,\boldsymbol{\pid}_s))$
+        for each $a$ in increasing order.
       \item If $r=\InputStart_s$, freeze each provider's input list.
         Let $j$ be the first entry whose value has the form
         $(s,a,x)$ with $x\in\mathcal X_{s,a}$.

@@ -65,7 +65,7 @@
     \node[labeltext,text=YasoControl,anchor=west] at (3.58,-1.6)
       {$\Register(\Class)$, $\Read$\\$\Activate(\pk)$, $\Post(\pk,m)$\\Corruption};
     \node[labeltext,text=YasoControl,anchor=east,align=right] at (7.77,-2.95)
-      {$\pk$, ledger $L$\\Exposed keys, randomness,\\inputs and histories};
+      {$\pk$, ledger $L$\\Exposed keys, randomness,\\inputs and histories\\$(\pid,v)$ to corrupt pids};
   \end{scope}
 }
 
@@ -94,7 +94,7 @@
 \node[labeltext,text=YasoControl,anchor=east,align=right,font=\fontsize{7.5}{9}\selectfont] at (16.77,-7.25)
   {$\pk,\widetilde c,\tau,\sigsk,\rho_{\mathsf{sig}}$\\
    $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\$\xpub$; input notices / indices\\
-   $(\xpub_s,\ypub_s)$\\corrupt outputs / records};
+   $(\xpub_s,\ypub_s)$, $(\Deliver,r,\pid,v)$\\corrupt outputs / records};
 
 % Thin clock connections are visually secondary to the message flows.
 \foreach \suffix/\target/\xpos in {R/ledger/5.675,I/mpc/14.675}{

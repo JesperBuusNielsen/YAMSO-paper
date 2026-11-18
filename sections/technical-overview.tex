@@ -67,8 +67,10 @@ component.  The input commitment must match the protocol: an honest posting
 fixes its contribution, whereas corruption before posting permits the
 provider to change or omit it.  Corruption reveals the affected party's
 retained inputs and already-determined outputs, including outputs pending
-delivery.  The functionality determines outputs when inputs close and
-delivers honest recipients' outputs at the later designated tick.
+delivery.  The functionality determines outputs when inputs close.
+At the designated tick it delivers each due bit or circuit notification
+$v$ in registration order.  It sends $v$ directly to an honest pid.
+At a corrupted pid's turn it sends $(\Deliver,r,\pid,v)$ to the adversary.
 
 Section~\ref{sec:ideal-mpc} defines the reactive task and its
 registration, announcement, input, and output interfaces.  The adversary

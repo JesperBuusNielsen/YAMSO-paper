@@ -114,8 +114,7 @@ The circuit rule remains
 $F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$ as in
 Section~\ref{sec:reactive-task}, using the committed public input components.  Announcements, commitments, and private deliveries
 follow Figure~\ref{fig:mpc-execution}, \emph{Clock tick},
-with the queued deliveries of Figure~\ref{fig:yaso-ledger},
-$\EndRound$, also reproduced for pids corrupted before delivery.
+with the simulator handling $\Deliver$ as in Section~\ref{sec:simulator-logistics}.
 
 \paragraph{Executable replacements.}
 $H_0$ uses the seven subscript-$0$ hooks of
@@ -295,16 +294,6 @@ Assume receiver non-committing security with tape exposure
  \leq\negl(\lambda).
 \]
 \end{lemma}
-
-\paragraph{Order of deliveries at a tick.}
-Lemmas~\ref{lem:remove-ideal-bookkeeping} and~\ref{lem:simulation-guards}
-assume that a private output or circuit notification
-queued before corruption can be relayed at its recipient's position
-in the tick's delivery order.  Figure~\ref{fig:yaso-ledger} fixes that
-position by registration order.  Figure~\ref{fig:mpc-execution} delivers
-to the still-honest pids, and the simulator supplies the queued outputs
-to pids corrupted in the meantime.  The current interfaces leave the
-order of honest and relayed deliveries unspecified.
 
 \begin{lemma}[Removing the ideal bookkeeping]
 \label{lem:remove-ideal-bookkeeping}
@@ -808,12 +797,19 @@ steps extend every agreeing prefix up to its first failure.
  result with $(z_s,c_s,\ypub_s)$, and garbling correctness gives the same
  evaluated result.  This advances the induction to the next circuit.
  \item[Delivery and corruption ($\PO{9}$).]
- Decrypting the pad gives the private ideal output.  For a pid corrupted
- between activation and delivery, the simulator knows the queued value
- from the corruption record.  The delivery-order hypothesis places
- that value at the pid's position in $\EndRound$.  All disclosed coins are genuine.  Replaying the saved
- snapshots, input histories, tapes and oracle replies therefore recovers
- the genuine postings and outputs of this pid.
+ Decrypting the pad gives the private ideal output.  Each honest
+ addressee has queued its bit or circuit notification by the end of
+ the sweep.  For a corrupt addressee, the simulator forwards the
+ $\Deliver$ notice's payload exactly when an honest activation queued
+ it before corruption.  Within each recipient or provider list,
+ wire order is registration order.  If $\OutputTick_s=\ReadyTick_k$,
+ then $\ReadyTick_s<\OutputTick_s$ by $\Proceed(s)$.  Announcements
+ occur in round order, so $s<k$ and allocation places the recipients
+ of $s$ before the providers of $k$ in the registry.
+ Thus the two delivery loops in Figure~\ref{fig:mpc-execution} reproduce
+ the ordered $\PendingOutputs_{r-1}$ of $\EndRound$, also at a shared tick.
+ All disclosed coins are genuine.  Replaying the saved snapshots, input
+ histories, tapes and oracle replies recovers the pid's genuine history.
 \end{description}
 
 Thus $H_6$ reaches a guard with negligible probability.  Let

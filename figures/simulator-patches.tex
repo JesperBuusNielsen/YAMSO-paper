@@ -23,7 +23,8 @@
   Corruption of $\pid$; random-oracle query $q$};
 \node[lab,anchor=east,align=right] at (17.35,-1.9)
  {$\pk$, ledger $L$; oracle answer\\
-  Exposed keys, tapes, inputs, and local histories};
+  Exposed keys, tapes, inputs, and local histories\\
+  Queued $(\pid,v)$ for corrupt pids};
 
 \node[anchor=north west,inner sep=0pt,text width=16.8cm,align=left] at (.6,-4.25) {
 Execute the ledger and protocol of Sections~\ref{sec:ledger}--\ref{sec:construction}
@@ -93,7 +94,8 @@ separate final step.
  {$\pk,\widetilde c,\tau_P,\sigsk,\rho_{\mathsf{sig}}$\\
   $(s,F_s,\boldsymbol{\pid}_s,\ReadyTick_s)$\\
   Input notices with $\xpub$; $\SelectedInput$ indices\\
-  $(s,\xpub_s,\ypub_s)$; corrupt outputs and records};
+  $(s,\xpub_s,\ypub_s)$; corrupt outputs and records\\
+  $(\Deliver,r,\pid,v)$};
 \end{tikzpicture}}
 \endgroup
 \caption{Where the simulator invokes its seven replacement hooks.

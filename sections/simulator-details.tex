@@ -144,11 +144,14 @@ reveals them.
  delivery key, call $\Deliveries_0.\Bind(\pid,0^{\ell_{\mathsf{del}}})$.
  Reconstruct the state and history as in Section~\ref{sec:simulator-checks}
  and disclose them as specified by the ledger's corruption handler.
- At a delivery tick, $\FMPC$ outputs to still-honest pids as in
- Figure~\ref{fig:mpc-execution}, \emph{Clock tick}, items~2--3.
- If an output was queued before its pid was corrupted, reproduce the
- output to that pid prescribed by Figure~\ref{fig:yaso-ledger},
- $\EndRound$, final instruction.
+ Implement the delivery instruction of Figure~\ref{fig:yaso-ledger},
+ $\EndRound$, using Figure~\ref{fig:mpc-execution}, \emph{Clock tick},
+ items~2--3.  Keep the queue for slot $r-1$ through the deliveries at
+ tick $r$.  $\FMPC$ delivers directly to honest pids.  On
+ $(\Deliver,r,P,v)$ for a corrupt pid, check $\PendingOutputs_{r-1}$.
+ If it contains an entry for $P$, consume it and immediately forward
+ $(P,v)$ to $\mathcal Z$ as the ledger's output to $P$.
+ Otherwise discard the notice.
 \end{description}
 
 Registration helpers, selected-input indexes, and early ideal results
