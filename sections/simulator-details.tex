@@ -363,8 +363,9 @@ corresponding complete experiments.
  same signed message does not fail this check.
  \item[$\PO{4}$: public samples.]\phantomsection\label{po:samples}
  At every sampling call made by the simulated ledger or an honest step,
- compare its public result with $\SimSample(d)$.  These calls occur in
- Figure~\ref{fig:shared-coins}, $\Coin.\Prepare$, and
+ compare its public result with $\SimSample(d)$.  Include the private
+ $\Coin.\Prepare$ evaluation in $\Sampling_0.\Reserve$.  The public
+ algorithms are Figure~\ref{fig:shared-coins}, $\Coin.\Prepare$, and
  Figure~\ref{fig:protocol-schedule}, $\PublicData$, item~1,
  $\CoinPhase(s)$.
  \item[$\PO{5}$: nonce recovery.]\phantomsection\label{po:nonce}
