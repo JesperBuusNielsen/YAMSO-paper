@@ -13,29 +13,23 @@ The bundle $\GarbledRound_s$ contains the garbled circuit, its public
 keys, and encrypted packets for the participants.
 
 \paragraph{Primitives and interactions.}
-We describe local algorithms on typed inputs as \emph{primitives} and
-the protocol's public-message rules as \emph{interactions}.
-Each interaction has a \emph{When} test and a
-\emph{What} computation, with the invoking pid as its first argument.
-The protocol specifies the interaction calls and their arguments.
-The ledger argument $L_r$ is the snapshot frozen at the start of round $r$.
-Write $(\Roles_r,\MaySpeak_r)=\Schedule(L_r)$ for its assignments and
-permitted speakers.
-
-Whenever the ledger invokes a party's step algorithm, the party evaluates
-\emph{When} for each interaction call whose first argument is its pid.
-If none returns $\top$, its message is $\bot$.
-For application interactions, it computes \emph{What} for each call whose
-test returns $\top$ and includes the resulting contributions in a single
-posting.
-
-For the computation interactions below, \emph{What} describes the
-meaningful contribution, such as a share.  The contribution is recoverable
-from the party's secret key and the interaction's public arguments.
-If at least one test returns $\top$, $\ComputationStep$ returns one copy
-of $\sk$.  Readers recover the contributions by computing \emph{What}
-with this key and the same public arguments.  Thus, saying that a member
-sends its share is shorthand for this key disclosure and recovery.
+Primitives are local algorithms on typed inputs.  An interaction is a
+posting rule whose first argument is the invoking pid.  The parties derive the
+round's public data from the ledger snapshot $L_r$ frozen at the start
+of round $r$, with $(\Roles_r,\MaySpeak_r)=\Schedule(L_r)$.
+We give each rule in three parts.
+\begin{description}
+  \item[\WhenField.] The condition under which the rule executes.  On a step,
+    the party tests this condition for each applicable call.  If none
+    holds, its message is $\bot$.
+  \item[\WhatField.] The message to post when the condition holds.  All calls
+    triggered in one step share a single posting.  A computation party
+    posts its secret key $\sk$, and an input provider posts its signed record.
+  \item[\ValueField.] A named value that anyone can derive from the posting
+    and the public arguments of the call.  For example, a posted $\sk$
+    lets a reader decrypt the member's share from its public ciphertext.
+    We name the share here so that the calling protocol can refer to it.
+\end{description}
 
 \subsection{Common reference string}
 \label{sec:construction-crs}
@@ -126,13 +120,13 @@ All vectors below have $n$ indexed entries.
     $B$: a deterministic polynomial-time predicate on ledger snapshots,
     supplied by the calling protocol.
     \begin{description}
-      \item[When.]
+      \item[\WhenField.]
         $\pk\in\boldsymbol{\pk}$, $\pk\in\MaySpeak_r$,
         and $B(L_r)=1$.
-      \item[What.]
-        For the unique $i$ with $\pk=\pk_i$, decrypt $c_i$ using $\sk$
-        and return the decoded share $v_i$, or $\bot$ on decryption
-        or decoding failure.
+      \item[\WhatField.] $\sk$.
+      \item[\ValueField.] For $\pk=\pk_i$, the share $\widehat v_i$ obtained by
+        decoding $\RNCE.\Dec(\sk,c_i)$ as in $\ESCR.\Recover$, with $\bot$
+        on decryption or decoding failure.
     \end{description}
 \end{description}
 
@@ -146,8 +140,9 @@ for a release round $r$ whose snapshot satisfies $B(L_r)=1$.
 At the next snapshot $L_{r+1}$, each reader builds
 $\widehat{\boldsymbol{\sk}}$ by taking $\widehat{\sk}_i$ from
 $(\Message,r,\pk_i,\widehat{\sk}_i)$, with $\bot$ if no such record
-occurs.  These values, together with the prepared ciphertext vector,
-are the inputs to $\ESCR.\Recover$.
+occurs.  Given these keys and the ciphertext vector, $\ESCR.\Recover$
+reconstructs from the shares $\widehat v_i$, with $\bot$ at missing
+positions.
 
 \subsection{Shared coins}
 \label{sec:shared-coins}
@@ -208,12 +203,14 @@ decoding that returns $\bot$ outside its image.
 \GadgetHeading{Interactions}
 \begin{description}
   \item[$\Coin.\Release(\pk,\sk,L_r;\boldsymbol{\pk},\boldsymbol c,B)$.]
-    Arguments as for $\ESCR.\Release$.
-    Invoke the interaction
-    \[
-      \ESCR.\Release(\pk,\sk,L_r;
-        \boldsymbol{\pk},\boldsymbol c,B).
-    \]
+    Use $\ESCR.\Release(\pk,\sk,L_r;\boldsymbol{\pk},\boldsymbol c,B)$
+    with the arguments of Figure~\ref{fig:conditional-release}.
+    \begin{description}
+      \item[\WhenField.] The condition of this $\ESCR.\Release$ call.
+      \item[\WhatField.] $\sk$.
+      \item[\ValueField.] Its decoded share $\widehat v_i$ of the encoded coin
+        $\iota(Q)$.
+    \end{description}
 \end{description}
 \end{minipage}}
 \caption{$\Coin$: preparation, release, and recovery of a shared coin.}
@@ -295,11 +292,13 @@ outside its image.
 
     Define the constant predicate $B_{w,b}(L)=1$ if $x\neq\bot$ and
     $x_w=b$, and $B_{w,b}(L)=0$ otherwise.
-    Invoke the interaction
-    \[
-      \ESCR.\Release(\pk,\sk,L_r;
-        \boldsymbol{\pk},\boldsymbol c,B_{w,b}).
-    \]
+    Use $\ESCR.\Release(\pk,\sk,L_r;\boldsymbol{\pk},\boldsymbol c,B_{w,b})$.
+    \begin{description}
+      \item[\WhenField.] The condition of this $\ESCR.\Release$ call.
+      \item[\WhatField.] $\sk$.
+      \item[\ValueField.] Its decoded share $\widehat v_i$ of
+        $\langle\GarbleAux,L_{w,b}\rangle$.
+    \end{description}
 \end{description}
 \end{minipage}}
 \caption{$\Labels$: preparation and release of a garbled input encoding.}
@@ -400,10 +399,13 @@ Let $\DefaultInput=0\mathbin\|0^\kappa$.
     $r_{\mathsf{in}}$: the ledger round for input posting;
     $r$ is the number of $\Tick$ entries in $L_r$.
     \begin{description}
-      \item[When.]
+      \item[\WhenField.]
         $r=r_{\mathsf{in}}$, $\pk\in\MaySpeak_r$, and $x\neq\bot$.
-      \item[What.]
-        Return $\Inputs.\Prepare(\inputpk,\sigsk,\ctx,x)$.
+      \item[\WhatField.] The signed record
+        $R\gets\Inputs.\Prepare(\inputpk,\sigsk,\ctx,x)$.
+      \item[\ValueField.] For a valid $R=(\InputRecord(\ctx,\xpub,c),\sig)$,
+        the pair $(z,\xpub)$ with $z=1\mathbin\|c$.  $\Inputs.\Select$
+        takes the first such pair in ledger order.
     \end{description}
 \end{description}
 \end{minipage}}
@@ -915,8 +917,8 @@ step before using it.
       \Labels.\Release(\pk,\sk,L_r;w,b,
         \boldsymbol{\pk}_{s,w,b},(\LabelPackets_s)_{w,b},\InputBits_s).
     \]
-    For the applicable interaction, evaluate \emph{When} and return
-    $\sk$ if true, or $\bot$ otherwise.
+    If an applicable interaction's \emph{\WhenField} holds, return its
+    \emph{\WhatField} message $\sk$.  Otherwise return $\bot$.
 
   \item[$\ApplicationStep(\pk,\sk,L_r,x)$.]
     Run $\PublicData^H(L_r)$ to obtain the assignments, current phase,
@@ -937,8 +939,8 @@ step before using it.
       \Inputs.\SubmitInput(\pk,\sk,L_r;
             u,\inputpk_{s,a},\ctx_{s,a},r_s^{\mathsf{in}}).
     \]
-    Return $(\bot,m)$, where $m$ is its \emph{What} value when
-    \emph{When} holds, and $\bot$ otherwise.
+    If its \emph{\WhenField} holds, return $(\bot,R)$ with the signed record
+    $R$ from \emph{\WhatField}.  Otherwise return $(\bot,\bot)$.
 
     If $\pk=\pid^{\mathsf{out}}_{s,j}$ in $\OutputPhase(s)$, decrypt
     $v\gets\RNCE.\Dec(\sk^{\mathsf{del}},\OutputPackets_{s,j})$.
