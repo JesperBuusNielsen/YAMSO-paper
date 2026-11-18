@@ -266,8 +266,7 @@ between hooks invoke the versions selected by the current experiment.
 All statements below quantify over the same complete experiments and
 arbitrary PPT environments $\mathcal Z$.  Each negligible function may
 depend on $\mathcal Z$.  The proofs follow the statements, starting in
-Section~\ref{sec:first-hybrid-proof}.  Each reduction runs the complete
-experiment and changes one primitive instance at a time.
+Section~\ref{sec:first-hybrid-proof}.
 
 
 \begin{lemma}[Restoring input encryption]
@@ -401,35 +400,44 @@ The lemmas give the endpoint comparison
  +\sum_{i=0}^{7}|p_i^{\mathcal Z}(\lambda)-p_{i+1}^{\mathcal Z}(\lambda)|.
 \end{split}
 \]
-Each cryptographic comparison sweeps over the polynomially many relevant
-instances reached by the fixed efficient experiment.  Its reduction may
-use a polynomial bound on that number; neither setup nor the simulator
-receives such a bound.  Within a sweep, count instances when they first
-occur and continue all subsequent adaptive choices normally.
+\paragraph{Switching one instance at a time.}
+For a step $H_i\to H_{i+1}$ that switches several instances of a
+primitive, fix $\mathcal Z$ and number the instances as they arise.
+Let $J_j$ use the new rule for the first $j$ and the old rule thereafter.
+The reduction chooses $j$ uniformly in $[N]$, where $N$ is a polynomial
+bound on the number of instances in any mixed experiment, rounded up to
+a power of two.  It runs the whole experiment, using its challenger at
+instance $j$, and returns the experiment's bit, including $0$ when a
+guard fires.  If instance $j$ is never reached, the two experiments
+agree on that branch and the reduction may return $0$.  For instances
+created during sample preparation, count every
+first preparation, including calls from $\SimSetup$, $\SimRO$, and the
+consistency checks.  A cache hit reuses the same instance.
+
+When the challenger supplies a public message length $\ell$, run the
+common prefix independently of $\ell$ and the challenge key.  At the
+target, return $0$ if its prescribed length differs from $\ell$.
+Write $\Delta_\ell$ for the reduction's signed advantage at length
+$\ell$ (new minus old).  The matching lengths
+partition the common prefix.  Summing over them and telescoping over $j$
+gives, for a polynomial bound $b$ on the lengths,
+\begin{equation}
+ \sum_{\ell=0}^{b(\lambda)}\Delta_\ell
+   =\frac{1}{N}\sum_{j=1}^N
+       \bigl(\Pr[J_j=1]-\Pr[J_{j-1}=1]\bigr)
+   =\frac{p_{i+1}^{\mathcal Z}(\lambda)-p_i^{\mathcal Z}(\lambda)}{N}.
+ \label{eq:instance-sweep}
+\end{equation}
+A uniform advantage bound $\varepsilon$ thus gives an endpoint gap of
+at most $N(b+1)\varepsilon$.  For a single fixed length the loss is $N$.
 
 \subsection{First reduction: input encryption}
 \label{sec:first-hybrid-proof}
 \begin{proof}[Lemma~\ref{lem:restore-input-encryption}]
-Fix $\mathcal Z$.  Enumerate input-key instances when their designated
-round samples are first prepared, using provider order within a sample.
-A repeated request for the same description returns the stored sample
-and creates no new instance.  Let $J_j$ restore genuine input encryption
-for the first $j$ instances and use the simulated procedure for the
-rest.  Thus $J_0=H_0$ and $J_N=H_1$, where $N=N(\lambda)\geq1$ is a polynomial
-bound on the number of instances across all $J_j$, including preparations
-caused by $\SimSetup$, $\SimRO$, and consistency-check source calls.
-Such a bound is used only by the reduction, not by the simulator or protocol.
-
-We construct one uniform NCE adversary $\mathcal B$, receiving the
-public challenge length $\ell$.  It chooses $j$ uniformly from $[N]$
-and runs the experiment containing $\mathcal Z$, the clock, the ideal
-computation, and the simulated ledger.  It also runs $\SimSetup$,
-$\SimRO$, and their memoized sampling source.  Before the $j$th input-key
-instance, it follows the common prefix of $J_{j-1}$ and $J_j$ without
-using $\ell$.  If that instance never occurs, or its prescribed length
-is different from $\ell$, it calls $\Finish(0)$.  Otherwise it replaces the target calls to
-$\InputEncryption.\Prepare$, $\Post$, and $\Corrupt$ by the
-following challenger calls.
+Count input keys at first preparation of each designated round sample,
+in provider order.  At the target, the provider's input length is fixed
+by the sample description.  The NCE adversary uses the following
+challenger calls for $\InputEncryption.\Prepare$, $\Post$, and $\Corrupt$.
 
 \begin{description}
   \item[Preparation.]
@@ -507,88 +515,39 @@ $\mathcal Z$'s local sampling and interleaved oracle queries.  Consequently,
 on a matching target length the two challenge worlds reproduce the
 corresponding branches of $J_{j-1}$ and $J_j$.
 
-Let $b(\lambda)$ bound all input lengths in this experiment, and write
-$\Delta_\ell$ for the signed real-minus-ideal NCE advantage of
-$\mathcal B$ at length $\ell$.  Target length is determined before the
-challenge call and its events partition the common prefix.  Hence
-\[
-\begin{aligned}
-  \sum_{\ell=0}^{b(\lambda)}\Delta_\ell
-    &=\frac1N\sum_{j=1}^{N}
-       \bigl(\Pr[J_j^{\mathcal Z}(1^\lambda)=1]
-             -\Pr[J_{j-1}^{\mathcal Z}(1^\lambda)=1]\bigr)\\
-    &=\frac{p_1^{\mathcal Z}(\lambda)-p_0^{\mathcal Z}(\lambda)}N.
-\end{aligned}
-\]
-Uniform full-NCE security bounds every $|\Delta_\ell|$ by the same
-negligible $\varepsilon_{\mathcal B,b}$.  The desired difference is
-therefore at most $N(b+1)\varepsilon_{\mathcal B,b}$, which is negligible.
+Equation~\eqref{eq:instance-sweep} and the uniform full-NCE bound of
+Definition~\ref{def:nce} give $|p_1^{\mathcal Z}-p_0^{\mathcal Z}|\leq\negl(\lambda)$.
 \end{proof}
 
 \subsection{State transfer}
 \label{sec:state-hybrid-proof}
 \begin{proof}[Lemma~\ref{lem:restore-state-ciphertexts}]
-Fix $\mathcal Z$.  Enumerate the state-key instances of designated
-samples for rounds $s+1\geq2$ when those samples are first prepared.
-Each such key receives at most one state ciphertext, produced at the
-closure of round $s$.  Let $J_j$ use $\StateCiphertext_1$ for the first
-$j$ keys in this order and $\StateCiphertext_0$ for the rest.  For a
-polynomial bound $N\geq1$ across all $J_j$, $J_0=H_1$ and $J_N=H_2$.
-Count preparations caused by $\SimSetup$, $\SimRO$, and consistency
-checks as well; repeated exact descriptions create no new instance.
-
-An IND-CPA adversary $\mathcal B$ receives the challenge public key
-$\pk$ at public message length $\ell$, chooses $j$ uniformly in $[N]$,
-and runs the whole hybrid experiment.  Until the $j$th key is needed,
-it uses neither $\pk$ nor $\ell$.  If that instance is never reached,
-or its state length $\nu_s$ differs from $\ell$, it returns $0$.
-Otherwise it substitutes $\pk$ for $\statepk_{s+1}$ in step~1 of
-Figure~\ref{fig:distribution-circuit}.  All other sample components
-and instances are generated locally in their prescribed modes.
-
-When round $s$ closes, the reduction reads $\sigma_s$ from its
-internally executed ideal task and calls
+Count state keys at first preparation of each designated successor sample
+$s+1\geq2$.  Its incoming state length $\nu_s$ is fixed by the round
+circuit.  The IND-CPA adversary uses its challenge at two points.
 \[
-  c_s\gets\Challenge(0^{\nu_s},\sigma_s).
+ \begin{array}{@{}ll@{}}
+  \text{Prepare sample }s+1\text{, step~1 of Figure~\ref{fig:distribution-circuit}}
+    & \statepk_{s+1}\gets\pk^\star \\[2pt]
+  \text{Close inputs for }s\text{, at }\StateCiphertext(s)
+    & c_s\gets\Challenge(0^{\nu_s},\sigma_s).
+ \end{array}
 \]
-It uses $c_s$ as the result of the state-ciphertext hook, including in
-the call to $\Garbling_0.\Encode$ and in subsequent public input
-strings.  If this closure never occurs, no challenge is needed.
-The reduction continues the experiment and returns its terminal bit,
-including $0$ on an inherited guard failure.
+Here $\pk^\star$ is the challenge public key.  At closure the reduction
+reads $\sigma_s$ from the internal ideal task.  The returned $c_s$ goes into
+$\Garbling_0.\Encode$ and the public input of the successor.  Each key
+serves one predecessor, so closure requests at most one ciphertext.
 
-The reduction needs neither the target secret key nor the encryption
-tape.  The secret key's only circuit use is inside
-$\RoundCircuit_{s+1}$; its garbling is still produced by
-$\Garbling_0$ from the topology alone.  The next simulated encoding
-uses the ideal task's output rather than decrypting $c_s$.
-State-key generation and state encryption occur inside the sampling
-circuit and round circuit, respectively, not in a registered party's
-retained computation.  Their tapes are therefore absent from every
-corruption disclosure.  None of the inherited guards decrypts $c_s$;
-the additional $\BadCorrectness$ guard is introduced only in $H_3$.
-The other checks use the public ciphertext, cached values, and known
-registered-party state, so they remain executable.
-
-Both challenge messages have the prescribed length.  Their choice
-may depend on the public key and the entire preceding execution, as
-allowed by Definition~\ref{def:ind-cpa}.  The challenge is requested
-once, and no decryption oracle is used.  Other sample descriptions
-are computed locally from fresh independent source tapes, even when
-they contain $\pk$ as public data; no other designated sample uses
-the target secret key.  Thus challenge bit $0$ gives $J_{j-1}$ and
-bit $1$ gives $J_j$ on the matching-length branch.
-
-As in the first reduction, the target length is fixed before the
-challenge public key enters the simulated execution.  Partitioning
-over lengths at most a polynomial $b(\lambda)$ and telescoping over
-$j$ bounds
-\[
- |p_2^{\mathcal Z}(\lambda)-p_1^{\mathcal Z}(\lambda)|
- \leq N(b+1)\varepsilon_{\mathcal B,b}(\lambda),
-\]
-where $\varepsilon_{\mathcal B,b}$ is the uniform IND-CPA bound.
-This is negligible.
+The successor's $\Garbling_0.\Prepare$ uses only the topology of
+$\RoundCircuit_{s+1}$, and its $\Encode$ takes the prescribed result.
+The first guard that decrypts $c_s$ enters at $H_3$.  The key-generation
+coins of $\SampleCircuit_{s+1}$ and the encryption coins of
+$\StateCiphertext(s)$ are internal to these calls, so neither appears in
+a registered party's corruption disclosure.
+Challenge bit $0$ gives $J_{j-1}$ and bit $1$ gives $J_j$ on a matching
+target.  Equation~\eqref{eq:instance-sweep} and IND-CPA security
+(Definition~\ref{def:ind-cpa}) give
+$|p_2^{\mathcal Z}-p_1^{\mathcal Z}|\leq\negl(\lambda)$.
 \end{proof}
 
 \subsection{Circuit constants}
