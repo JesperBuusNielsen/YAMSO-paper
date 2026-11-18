@@ -178,8 +178,8 @@ in a list $\PendingOutputs_r$.
   from registration.  Return $\pk$ to the adversary.  For class
   $\Application$, also output $\pk$ to pid $\pk$.
 
-\item[$\Read$ from any pid or from the adversary.]
-  Output the current $L$ to the requesting pid or adversary, respectively.
+\item[$\Read$ from the adversary.]
+  Return the current $L$ to the adversary.
 
 \item[$\Input(u)$ from party $\pid=\pk$.]
   If $\pk$ is an honest application party, append $(|L|,u)$ to $x_\pk$
@@ -239,8 +239,7 @@ in a list $\PendingOutputs_r$.
   The adversary can use $\Post$ to post on behalf of the corrupted pid.
 \end{description}
 Reject malformed commands and commands naming an
-unregistered key, except that $\Read$ is available
-to any pid.
+unregistered key.
 \end{minipage}}
 \caption{Execution of a YASO protocol.  Silence preserves protection for
 an initially honest computation party; only an actual posting sets

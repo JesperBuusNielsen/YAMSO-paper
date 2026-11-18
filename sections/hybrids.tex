@@ -1,298 +1,82 @@
 \section{Hybrid Proof Sketch}
 \label{sec:hybrids}
 
-Section~\ref{sec:hybrids-details} gives the complete experiments, formal
-lemma statements, and reductions after the construction and ideal task.
+The difficulty in replacing $c_s$ by an encryption of $\sigma_s$ is
+that the successor's garbling contains the matching secret key.
+We make this change while the successor is still generated from its
+topology.  Only afterward do we restore the garbling that uses the key.
+The hybrids of Section~\ref{sec:hybrid-lemmas} compare the output bit of
+the same environment in each complete experiment.  In $H_0$ through $H_6$ the reduction runs $\FMPC$
+internally and hence knows the secret inputs, private outputs, and
+states needed for its challenges.
 
-We sketch a sequence from the simulator of Section~\ref{sec:simulator}
-to the real execution.  The main order is to restore input encryption,
-then encrypted states, then the garblings containing both sets of
-decryption keys, then private deliveries, and finally public sampling.
-Each cryptographic
-step is a family of one-challenge reductions: we finish that type of
-replacement across the execution before proceeding to the next type.
-We assume throughout that all committees satisfy their honesty
-thresholds; choosing parameters to ensure this is separate from the
-hybrid argument.
+\paragraph{Restore the plaintexts before the garblings ($H_0$--$H_3$).}
+Start with the guarded simulator.  Full NCE restores genuine input
+keys and encryptions one provider at a time, including the sender tape
+or receiver key required by the order of corruption and posting.
+Next embed an IND-CPA challenge key as $\statepk_{s+1}$ and request
+$\Challenge(0^{\nu_s},\sigma_s)$.  The ciphertext enters the public
+transcript and the successor's input.  Its secret key is never
+disclosed, and the topology-only simulator for the successor needs
+only its prescribed evaluation result at encoding.  Once every transfer encrypts
+the true state, choose the output pads $r_s$ and outgoing encryption
+coins $\rho_s$ at preparation.  For a still-honest recipient the unused pad is independent of the
+transcript up to closure, so setting $z_{s,j}=\ysec_{s,j}\oplus r_{s,j}$
+has the same law as choosing $z_{s,j}$ uniformly then.
+This change of sampling order fixes the constants of $C_s$ before its
+input is known.
 
-Until the final step, retain $\SimSetup$ and $\SimRO$, changing only
-their memoized source $\SimSample$ and simulated party behaviour.
-Each reduction includes the environment's local sampling computations.
+\paragraph{Restore the garblings ($H_3$--$H_4$).}
+At preparation the reduction submits the fully specified $C_s$ to
+the adaptive garbling game.  At closure it has the public input string
+\[
+  \InputBits_s=(\InputRecords_s,c_{s-1},\statepk_{s+1}).
+\]
+Honest records decrypt to the committed inputs except on a correctness
+failure.  For a corrupt record, the simulator used the same decryption
+key, tape, and default rule as $C_s$.  The incoming ciphertext now
+decrypts to the preceding ideal state, with empty state in round~1.
+Consequently
+\[
+ C_s(\InputBits_s)=
+ \bigl(\ysec_s\oplus r_s,\,\PKE.\Enc(\statepk_{s+1},\sigma_s;\rho_s),\,
+       \ypub_s\bigr).
+\]
+This is precisely the tuple previously supplied to $\SimEncode$.
+One $\EncodeInput(\InputBits_s)$ query thus switches the simulated
+encoding to the genuine one.  The game returns only this selected
+encoding.  It suffices because the reduction can still complete the
+selected sharings when the encoding arrives.
 
-Each hybrid internally runs the ideal computation, giving its reduction
-the actual secret inputs, private outputs, and states $\sigma_s$.
-This is proof bookkeeping: these private values are neither exposed to
-the adversary or environment nor supplied to the implementable simulator.
-The public input components and outputs $\ypub_s$ are available to that
-simulator through the ideal interface.
-In every hybrid, the circuit rule is
-$F_s=G(s,(\xpub_t,\ypub_t)_{t\leq s-2})$, with $\xpub_t$ the committed
-public input vector.  Announcements, commitments, and private deliveries
-use the same clock rules.
+\paragraph{Restore the deliveries and public sampling ($H_4$--$H_8$).}
+Once all garblings are genuine, the reduction can generate both labels
+for every wire.  It now prepares both sharings.  Conditional on the initially corrupt
+shares, the selected sharing has exactly the same law as when completed
+at release.  Honest members of the other committee stay silent.  Every delivery plaintext is now available
+when its packet is prepared.  Receiver NCE restores the genuine
+delivery ciphertexts and key-generation tapes, including the tapes
+of members corrupted immediately after speaking.
 
-\paragraph{Input authentication.}
-Application registration samples genuine signing keys.  Until a
-provider is corrupted, an accepted message not previously signed by its
-prescribed signing step gives a one-time signature forgery.  The record
-binds the session, I/O round, provider, exact sample description, public
-input component, and ciphertext.  Stop at the first such forgery; a
-reduction need not answer
-a subsequent corruption of its challenge signer.
-After an honest record is irrevocably posted, later signing-key
-disclosure cannot replace it or reopen the deadline.
-If corruption precedes the honest posting, the adversary may instead
-choose both its public component and signed ciphertext.  The simulator
-interprets the ciphertext using the receiver key obtained from a dummy
-full-NCE explanation.  Failed secret decryption leaves the accepted
-public component unchanged.  Without an accepted record, the input pair is
-$(0^{\ell_{s,a}},\epsilon)$.
+At $H_6$ the source generates honest samples.  Robust reconstruction gives the selected encoding.  Correct evaluation
+and pad decryption then give the ideal task's public and private outputs.
+Here the proof bounds the probability of reaching a failed check.  For example, at reservation an
+early query for $\SampleCircuit_s$ must have guessed its nonce.
+In the experiment stopped at allocation, encryption hides the honest
+nonce shares, and up to $t$ corrupt shares are independent of the nonce.
+This argument counts even source queries made before the committee was
+assigned.  The aggregate failure bound carries back through the same
+hybrids by running an environment that returns $1$ on normal
+termination while each guard returns $0$ (Section~\ref{sec:guard-hybrid-proof}).
 
-\paragraph{Nonce freshness.}
-First establish that the service has not already answered the eventual
-description $\SampleCircuit_s$ before its non-nonce fields are frozen.  Work in an
-auxiliary experiment stopped before the first honest nonce-committee
-key is disclosed.  Message privacy of the nonce-share encryption hides
-the honest shares, while threshold privacy hides $Q_s$ from the corrupt
-shares.  The needed encryption privacy follows from RNCE security;
-its dummy-message explanation also accounts for the simulator's
-nonce-only keys.  Thus a premature query must guess a hidden uniform
-nonce.  Count every service query, including queries made internally by
-$\SimSetup$ and $\SimRO$, not only evaluations declared by the adversary.
-Apply this argument up to the first premature hit across the sequence of
-nonce releases.
-
-This stopped argument need not explain the substituted nonce packets
-after their keys are revealed.  In the main hybrids, the nonce packets
-are unchanged.  Robust reconstruction fixes the nonce uniquely, and
-the remaining description fields cannot change after its release.
-Keep the early-query abort in the games; its negligible probability
-then transfers through the indistinguishable hybrids below.
-
-\begin{description}
-  \item[$H_0$: the simulated execution.]
-    Start with the stated simulator: topology-only simulated garblings,
-    simulated input-encryption keys and ciphertexts, genuine signatures,
-    non-committing deliveries, and state ciphertexts
-    $c_s\sample\Enc(\statepk_{s+1},0^{|\sigma_s|})$.
-    Each simulated encoding is programmed with the complete public
-    evaluation result $(z_s,c_s,\ypub_s)$.
-    Selected sharings are completed only when the simulated input
-    encoding is available.
-
-  \item[$H_1$: restore input encryption and the required key or sender tape.]
-    Apply full non-committing security, one input provider at a time.
-    For target provider $a$ in round $s$, call $\GetPublicKey$ when its
-    round sample is prepared and publish the returned key as
-    $\inputpk_{s,a}$.  Fix its decryption tape $\delta_{s,a}$ independently
-    at this preparation step, as already done in $H_0$.
-    The reduction chooses between two branches as the execution proceeds.
-    \begin{description}
-      \item[Corruption before an honest posting.]
-        Call $\EncryptMessage(0^{\ell_{s,a}})$, keep its ciphertext
-        private, and call $\CorruptReceiver$.
-        Retain the returned decryption key internally.  Use it with
-        $\delta_{s,a}$ to interpret any subsequently selected adversarial
-        ciphertext, including the circuit's zero-default rule.
-        Pair that interpreted secret value with the public component of
-        the same signed record and submit the pair to the internal ideal
-        computation when the record is first accepted, before input closure.
-        This is efficient post-processing of the receiver state exposed
-        by the game.  The input provider receives only its actual
-        registered state and history, not this input-decryption key.
-      \item[Honest posting first.]
-        Call $\EncryptMessage(\xsec_{s,a})$ at posting.  Sign the record
-        containing the unchanged public component $\xpub_{s,a}$ and the
-        returned ciphertext with the provider's genuine signing key and
-        fresh coins.  If the provider is later corrupted, call $\CorruptSender$
-        and disclose the returned encryption tape with its retained
-        protocol state.  Both committed input components and the
-        ciphertext stay fixed.
-    \end{description}
-    Both branches use the same full-NCE simulator and one encryption
-    challenge.  In the first, the challenge ciphertext is discarded;
-    later adversarial ciphertexts require no further challenge calls.
-    If there is neither an honest posting nor corruption, the reduction
-    need not call $\EncryptMessage$.
-
-    All garblings still use $\SimGarble$ and $\SimEncode$.
-    Consequently, the honest-posting branch needs no input-decryption
-    key.  In the corruption-first branch, the game supplies that key
-    before any ciphertext must be interpreted.
-    This is the use of full non-committing security in
-    Definition~\ref{def:nce}, rather than its sender-only restriction.
-    It restores genuine input-key generation and honest input
-    ciphertexts, the sender tapes exposed after honest postings, and
-    the receiver keys used internally for corrupted providers.
-
-  \item[$H_2$: restore the plaintext states.]
-    Replace the state ciphertexts, one transfer at a time, by
-    \[
-      c_s\sample\Enc(\statepk_{s+1},\sigma_s).
-    \]
-    All garblings and the honest label deliveries remain simulated.
-    For a target transfer, use the IND-CPA challenger's public key as
-    $\statepk_{s+1}$ and call
-    \[
-      \Challenge(0^{|\sigma_s|},\sigma_s).
-    \]
-    The reduction knows $\sigma_s$ from the internal ideal computation.
-    It never needs the challenge secret key: the successor's
-    $\SimGarble$ uses only topology, and its $\SimEncode$ is given the
-    prescribed output rather than decrypting the incoming ciphertext.
-    In particular, $\ypub_s$ still comes from the internal ideal
-    computation.  No real garbling containing that key is present.
-    This is the use of IND-CPA security from
-    Definition~\ref{def:ind-cpa}.
-
-  \item[$H_3$: choose hidden constants early.]
-    Rewrite the experiment to choose each output pad $r_i$ when its
-    round is prepared, and later use
-    \[
-      z_i=\ysec_i\oplus r_i.
-    \]
-    This is the same distribution as choosing uniform $z_i$
-    first and explaining the hidden value afterward.  Before their
-    exposure or use, the simulated deliveries and garblings reveal
-    no information about the pads.  This also holds with public input and
-    output histories: an unexposed pad has not influenced the transcript
-    used to choose the application inputs.  Corruption after preparation exposes the
-    already-chosen pad; a recipient corrupt before preparation is assigned
-    its pad when that preparation occurs.
-
-    Also choose the outgoing state-encryption coins $\rho_s$ at
-    preparation rather than evaluation.  They have no earlier observable
-    use while the garbling remains simulated.  This exact
-    deferred-decisions change is made \emph{after} the IND-CPA sweep:
-    that sweep therefore did not require knowledge of the challenger's
-    encryption coins.
-
-    Keep the independent input-decryption tapes $\delta_{s,a}$ already
-    chosen at preparation in $H_0$.  They make decryption inside
-    $\RoundCircuit_s$ deterministic.  Honest encryption does not depend
-    on these hidden tapes, so correctness bounds its decryption-failure
-    probability; introduce an abort on this negligible event.
-    For adversarial ciphertexts, the ideal secret input was defined using
-    the same decryption key, tape, and default rule as $\RoundCircuit_s$.
-    Their interpreted values therefore agree by construction, without
-    a correctness claim for malformed ciphertexts.  Public components
-    are selected from the signed records outside the garbling.
-    Each augmented circuit $\RoundCircuit_s$ is now fully specified
-    when its garbling is requested.
-
-  \item[$H_4$: restore the garblings.]
-    Replace the simulated garblings by real garblings, one round at a
-    time, leaving all honest label-delivery ciphertexts simulated.
-    For the target round $s$, generate its genuine state-transfer and
-    input-encryption keys.  Construct $\RoundCircuit_s$ with $\statesk_s$, all
-    $\inputsk_{s,a}$, its output pads, and its encryption and decryption
-    tapes hardcoded.  At sample preparation, call
-    $\GarbleCircuit(\RoundCircuit_s)$.  Once the complete input is fixed, call
-    $\EncodeInput(\xi_s)$, where $\xi_s$ consists entirely of public
-    bits: the accepted input-ciphertext records or default records,
-    incoming state ciphertext, and successor public key.  The clear
-    public input components are not inputs to this garbling.
-
-    Honest ciphertexts decrypt to the committed secret input components
-    outside the correctness abort.  Adversarial ciphertexts and defaults
-    have exactly the interpretation used to supply secret inputs to
-    $\FMPC$.
-    Since all state ciphertexts also carry the correct states, we obtain
-    \[
-      \RoundCircuit_s(\xi_s)=
-      \bigl(\ysec_s\oplus r_s,\,
-        \Enc(\statepk_{s+1},\sigma_s;\rho_s),\ypub_s\bigr),
-    \]
-    with $r_s$ the vector of output pads.  This is precisely the output
-    previously supplied to $\SimEncode$.  The first round uses the
-    prescribed empty state.  The public input vector already agrees
-    through signed-record selection, and the public output now agrees
-    with the application computation.  After its challenge, the reduction
-    continues the execution using this public input/output history and
-    rule $G$.  Future circuit descriptions
-    and sampling requests may be chosen adaptively; they need not be fixed
-    before the challenge.
-
-    The game returns only the selected input encoding.  That is enough:
-    use $\CompleteShares$ to complete each selected committee's fixed
-    corrupt shares to the returned label bundled with $\GarbleAux$,
-    and explain the honest members' RNCE packets before their keys are
-    posted.  Neither inactive labels nor the encoding key are needed
-    by this reduction.
-    This is the use of adaptive garbling privacy from
-    Definition~\ref{def:adaptive-garbling}: inputs arrive after the
-    garbling, and simulation reveals only topology rather than embedded
-    gate constants.
-
-    The garbling reduction knows both the input and state secret keys
-    because it generates those keys itself.  It is a different reduction
-    from the earlier sender-NCE and IND-CPA reductions; it need not retain
-    either reduction's unknown challenge secret key.
-
-  \item[$H_5$: prepare both committee sharings early.]
-    All garblings are real, so subsequent reductions can generate them
-    locally and retain their encoding keys.  Complete both committee
-    sharings during sampling, independently for the two labels and their
-    bundled common material, conditioned on the fixed corrupt shares.
-    Perfect threshold privacy and Lemma~\ref{lem:sharing-completion} give
-    exactly the honest distribution, as does completing the selected
-    branch later.  Unselected honest members remain silent; every
-    delivery plaintext is now available at sample preparation.
-
-  \item[$H_6$: restore genuine deliveries.]
-    Apply receiver non-committing security, one delivery key at a time.
-    For a target key, call $\GetPublicKey$ at registration,
-    $\EncryptMessage$ with its actual packet when the designated sample
-    is prepared, and $\CorruptReceiver$ when its key must be disclosed.
-    If it is an application key, use the returned public key in both
-    the internally run ideal registry and the simulated ledger registry,
-    with the same independently generated signature key.  Thus the pid
-    appearing in assignments, notifications, inputs, and outputs is the
-    same within each experiment.  The reduction takes the target
-    ciphertext and receiver explanation from the game in place of that
-    key's registration helper.
-    For a selected committee member, this last call is before its
-    posting; for an output recipient, it is at its chosen corruption.
-    An inactive honest member need never be exposed.
-    The returned receiver tape accounts for the entire key-generation
-    computation, not merely its final decryption key.  The fixed step
-    tape and prescribed computation histories are supplied as in the simulator.
-
-    If an application key is exposed before its designated delivery,
-    including while unassigned, or the key is assigned only to a nonce
-    committee or an input provider's unused delivery role, use
-    $\EncryptMessage$ on a dummy message, discard that ciphertext
-    without publishing it, and call $\CorruptReceiver$.  Later visible
-    ciphertexts under this fixed key are ordinary encryptions.  Ciphertexts in other sampling
-    descriptions are likewise generated locally.
-    This is the use of Definition~\ref{def:receiver-nce}.
-    It comes after the garbling sweep because the reduction now knows
-    both labels and hence all share packets when $\EncryptMessage$
-    must be called.
-
-  \item[$H_7,H_8$: restore the real execution and public sampling.]
-    The service now generates an honest sample $\SampleCircuit(\rho)$,
-    using independent uniform coins $\rho$ for each new description.  Remove the early-query,
-    authentication, and honest-computation correctness aborts at negligible cost, before
-    replacing access to this internally generated source.  Apply
-    Definition~\ref{def:adaptive-universal-sampler} to replace
-    $\SimSetup$ and $\SimRO$ with real setup and the random oracle.
-    Its indistinguishability clause hides this change, and its
-    honest-sample consistency clause ensures that public evaluations
-    agree with the samples used to run the parties.  Consistency can
-    also be checked in the preceding hybrids and transferred by the
-    same comparisons.
-
-    At this point all sampled data, keys, and party messages have their
-    real distributions.  Robust reconstruction and correctness of
-    encryption and garbling identify the delivered outputs and state
-    transitions, including the public input/output histories
-    $(\xpub_s,\ypub_s)$ and their resulting circuit descriptions, with
-    the real protocol.
-\end{description}
-
-Each sweep ranges over the polynomially many rounds or roles in the
-particular efficient experiment being analysed.  This is not a
-setup-time bound on the number of rounds.  The outline separates exact
-distributional rewrites from cryptographic comparisons.
-Section~\ref{sec:hybrids-details} gives the formal statements and the
-first detailed reduction; the remaining reductions are still to be written.
+In $H_7$ the protocol uses simulated sampler parameters and oracle
+answers, and in $H_8$ it uses genuine setup and the random oracle.
+To make the comparison using only registered keys and public samples,
+the reduction runs the protocol in the sampler game.  It initially
+retains the simulator's extra private coin evaluations at allocation,
+so the stateful $\SimRO$ sees the same oracle calls.  The sampler's
+consistency guarantee now applies to that execution.  After switching
+to genuine parameters and a fixed random oracle, the extra evaluations
+can be dropped exactly.  Section~\ref{sec:endpoint-hybrid-proof}
+gives this comparison.  Each reduction treats the polynomially many
+instances reached by its environment, so setup requires bounds only
+on individual samples.

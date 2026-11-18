@@ -127,11 +127,11 @@ Adaptive garbling~\cite{HemenwayEtAl2016AdaptiveGarbling} accommodates
 inputs fixed after the garbling is published, including this successor
 key and the incoming state ciphertext.  This breaks the dependence on
 shared boundary labels and lets us use universal sampling separately
-for each round.  Sender non-committing encryption lets the simulator
-explain an input ciphertext's encryption randomness when its provider
-is corrupted; receiver non-committing encryption handles committee
-deliveries and output pads whose recipients may be exposed.
-Existing full NCE provides both properties, including constant
+for each round.  Input encryption uses full non-committing encryption.
+Depending on when a provider is corrupted, the simulator can explain
+the randomness of an honest posting or recover a key for decrypting an
+adversarial posting.  Committee shares and output pads require only
+receiver non-committing encryption.  Full NCE is achievable with constant
 ciphertext expansion for long inputs~\cite{BrakerskiEtAl2020ConstantNCE}.
 
 The construction is a feasibility result: its universal sampler uses
