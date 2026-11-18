@@ -27,7 +27,9 @@
   \email{sannidhiv@iisc.ac.in}}
 
 \begin{document}
+\pagenumbering{roman}
 \maketitle
+\thispagestyle{plain}
 % Keep natural paragraph and display spacing on pages with long formulas.
 \raggedbottom
 
@@ -35,8 +37,11 @@
 \clearpage
 \setcounter{tocdepth}{2}
 \pdfbookmark[0]{Contents}{contents}
+% LLNCS gives the first contents page an empty page style.
+\AddToHookNext{cmd/@starttoc/before}{\thispagestyle{plain}}
 \tableofcontents
 \clearpage
+\pagenumbering{arabic}
 \input{sections/introduction}
 \input{sections/preliminaries}
 \input{sections/technical-overview}

@@ -55,32 +55,44 @@ may choose to corrupt any input provider or output recipient at any
 time, even while silent.  It may also choose to leave them honest, in
 which case their private data must remain protected.
 
-\paragraph{MPC in a DMZ.}
-Consider a service offered by one or more companies with private data
-$D$.  A client submits an approved computation $F$ and, upon payment,
-receives $F(D)$ privately.  The client reaches the MPC service in a
-perimeter network (a DMZ).  Each company keeps the machines holding
-its data in the clear behind its firewall.  From there it could provision
-workers at different hosting providers and publish their public keys on
-the ledger.  A key need not reveal its worker's network address or
-hosting provider.  The worker's first message may reveal both.  Even if
-it deletes its key and shuts down, its provider may retain a snapshot
-or be required to disclose one.  YASO allows the adversary to inspect
-the speaker's entire state.
+We offer two examples to illustrate where techniques discovered in the
+YASO model might improve security.
 
-Where might the supply of fresh keys come from?  An existing YASO
-computation could take fresh random seeds as secret inputs from the
-companies, generate a batch of key pairs, and publish $(\pk_i)_i$
-along with an encryption of $(\sk_i)_i$ under the already registered
-public key of a provisioning machine.  That machine decrypts behind
-the firewall, installs one secret key per fresh worker, and can retire
-its receiving key without ever posting under it.  If provisioning a
-batch in parallel takes time $T$, and an online round trip takes
-time $\tau$, a reserve of $\lceil T/\tau\rceil$ rounds' worth of workers
-can cover the delay while the next batch is prepared.  This example
-trusts the provisioning machine with the entire batch.  The ledger in
-our theorem generates its own registered keys and models placement
-through the initial corruption rule above.
+\paragraph{Publishing from behind a firewall.}
+Consider an MPC service in a perimeter network (a DMZ).  Each company
+keeps its private data behind its firewall and publishes a protected
+input to the ledger, much as an internal application might publish
+content to a web server in a DMZ.  All messages across the company
+firewall go outward to the ledger.  A client submits its request to
+the perimeter service.  Upon payment for an approved function $F$, the
+workers there compute $F(D)$ on the companies' combined data $D$ and
+return the result privately to the client.  The machines holding the
+plaintext never have to accept a client request.  A company could also
+publish public keys for workers it has placed at different hosting
+providers.  The first posting under such a key may identify its host.
+Even if the worker then deletes its key and shuts down, the provider
+may retain a snapshot for later inspection.
+
+\paragraph{Supplying fresh keys recursively.}
+Consider an ongoing computation whose participants can come and go,
+as in fluid MPC~\cite{ChoudhuriEtAl2021FluidMPC}.  Where might the
+next set of YASO keys come from?  Starting with an initial set, the
+current YASO computation could use private random inputs to generate
+a fresh batch of key pairs for each participating party.  For a party
+with receiving key $\pk$, it publishes the new public keys
+$(\pk_i)_i$ and an encryption of the corresponding secret keys
+$(\sk_i)_i$ under $\pk$.  The party reads the ledger and decrypts
+locally.  It can reserve one fresh key to receive its following batch
+and install the others on fresh workers.  Those workers can run the
+next YASO computation, which in turn supplies the next keys.  The
+party can thus keep receiving keys without ever posting under a
+receiving key.  Each party is trusted with its own batch.
+
+Batching could move provisioning off the online path.  If preparing
+workers in parallel takes time $T$ and an online round trip takes time
+$\tau$, a reserve of $\lceil T/\tau\rceil$ rounds' worth of workers
+can cover the delay while the next batch is prepared.  The formal
+ledger used below generates its own keys at registration.
 
 \paragraph{The task and construction.}
 We give a UC feasibility construction for ongoing MPC in this ledger
